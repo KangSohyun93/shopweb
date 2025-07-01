@@ -65,8 +65,11 @@ const cartController = {
                 return res.status(404).json({ error: 'Cart item not found' });
             }
 
-            res.json({ message: 'Cart item variant updated' });
+            const updatedCart = await Cart.getCart(req.user.user_id);
+            res.json(updatedCart);
+            
         } catch (error) {
+            console.error('Error updating cart item variant:', error);
             res.status(500).json({ error: 'Failed to update cart item variant' });
         }
     },

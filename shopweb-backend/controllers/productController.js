@@ -238,18 +238,18 @@ const productController = {
     }
   },
 
-  searchProducts: async (req, res) => {
+searchProducts: async (req, res) => {
   try {
     const { q } = req.query;
-    console.log('Search query received:', q);
+    console.log('Search query received in controller:', q, 'Full URL:', req.originalUrl);
     if (!q) {
       return res.status(400).json({ error: 'Search query is required' });
     }
-
+    console.log('Before calling searchByName with query:', q);
     const products = await Product.searchByName(q);
-    console.log('Search results from DB:', products);
+    console.log('After searchByName - Results:', products);
     if (!products || products.length === 0) {
-      return res.status(200).json([]);
+      return res.status(200).json([]); 
     }
     res.json(products);
   } catch (error) {

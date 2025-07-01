@@ -3,6 +3,10 @@ const router = express.Router();
 const productController = require('../controllers/productController');
 const { authenticateJWT, isAdmin } = require('../middleware/auth');
 const upload = require('../middleware/upload');
+router.get('/search', (req, res, next) => {
+  console.log('Entering /search route with query:', req.query);
+  next();
+}, productController.searchProducts);
 
 router.get('/', productController.getAllProducts);
 router.get('/:id', productController.getProductById);
@@ -15,6 +19,5 @@ router.post('/upload-variant-image/:variantId', authenticateJWT, isAdmin, upload
 router.delete('/delete-primary-image/:productId', authenticateJWT, isAdmin, productController.deletePrimaryImage);
 router.delete('/delete-additional-image/:imageId', authenticateJWT, isAdmin, productController.deleteAdditionalImage);
 router.delete('/delete-variant-image/:variantId', authenticateJWT, isAdmin, productController.deleteVariantImage);
-router.get('/search', productController.searchProducts); // Route này cần tồn tại
 
 module.exports = router;

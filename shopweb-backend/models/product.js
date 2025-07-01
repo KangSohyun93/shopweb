@@ -165,35 +165,59 @@ const Product = {
     await pool.query('DELETE FROM products WHERE product_id = ?', [product_id]);
   },
 
-  searchByName: async (query) => {
+searchByName: async (query) => {
+  console.log('Executing enhanced search with query:', query);
+  const searchTerm = `%${query}%`;
+
   const [rows] = await pool.query(
-    `SELECT DISTINCT p.product_id, p.name, p.description, p.primary_image_url,
-            MIN(pv.price) as price, c.name as category_name, b.name as brand_name
+    `SELECT
+        p.product_id, p.name, p.description, p.primary_image_url,
+        c.name as category_name,
+        b.name as brand_name,
+        pv.variant_id, pv.sku, pv.size, pv.price, pv.stock_quantity, pv.image_url
      FROM products p
      LEFT JOIN categories c ON p.category_id = c.category_id
      LEFT JOIN brands b ON p.brand_id = b.brand_id
      LEFT JOIN product_variants pv ON p.product_id = pv.product_id
-     WHERE p.name LIKE ?
-     GROUP BY p.product_id, p.name, p.description, p.primary_image_url, c.name, b.name`,
-    [`%${query}%`]
+     WHERE
+        p.name LIKE ? OR      -- Tìm theo tên sản phẩm
+        b.name LIKE ? OR      -- Tìm theo tên thương hiệu
+        c.name LIKE ?         -- Tìm theo tên danh mục
+     GROUP BY
+        p.product_id, p.name, p.description, p.primary_image_url,
+        c.name, b.name, pv.variant_id, pv.sku, pv.size,
+        pv.price, pv.stock_quantity, pv.image_url`,
+    [searchTerm, searchTerm, searchTerm] 
   );
-  console.log('Raw search results from DB:', rows);
 
+  console.log('Raw search results from DB:', rows);
   if (!rows.length) return [];
 
   const products = {};
   rows.forEach(row => {
-    products[row.product_id] = {
-      product_id: row.product_id,
-      name: row.name,
-      description: row.description,
-      primary_image_url: row.primary_image_url,
-      category_name: row.category_name,
-      brand_name: row.brand_name,
-      price: row.price || 0
-    };
+    if (!products[row.product_id]) {
+      products[row.product_id] = {
+        product_id: row.product_id,
+        name: row.name,
+        description: row.description,
+        primary_image_url: row.primary_image_url,
+        category_name: row.category_name,
+        brand_name: row.brand_name,
+        price: row.price || 0,
+        variants: []
+      };
+    }
+    if (row.variant_id) {
+      products[row.product_id].variants.push({
+        variant_id: row.variant_id,
+        sku: row.sku,
+        size: row.size,
+        price: row.price,
+        stock_quantity: row.stock_quantity,
+        image_url: row.image_url
+      });
+    }
   });
-
   return Object.values(products);
 },
 };

@@ -1,117 +1,95 @@
 const Order = require('../models/order');
 
 const orderController = {
-  createOrder: async (req, res) => {
-    try {
-      const { address_id, total_amount, items, promotion_code } = req.body;
-      const user_id = req.user.user_id;
+    // TẠO ĐƠN HÀNG MỚI
+    createOrder: async (req, res) => {
+        try {
+            const orderData = { ...req.body, user_id: req.user.user_id };
+            const orderId = await Order.create(orderData);
+            const newOrder = await Order.getById(orderId, req.user.user_id, req.user.role);
+            res.status(201).json(newOrder);
+        } catch (error) {
+            console.error('Error creating order:', error);
+            res.status(500).json({ error: 'Failed to create order' });
+        }
+    },
 
-      if (!address_id || !total_amount || !items || !items.length) {
-        return res.status(400).json({ error: 'Missing required fields' });
-      }
+    // LẤY CÁC ĐƠN HÀNG CỦA NGƯỜI DÙNG HIỆN TẠI
+    getUserOrders: async (req, res) => {
+        try {
+            const orders = await Order.getByUserId(req.user.user_id);
+            res.json(orders);
+        } catch (error) {
+            console.error('Error fetching user orders:', error);
+            res.status(500).json({ error: 'Failed to fetch user orders' });
+        }
+    },
 
-      const orderId = await Order.create({
-        user_id,
-        address_id,
-        total_amount,
-        items,
-        promotion_code,
-      });
-      res.status(201).json({ id: orderId, message: 'Order created successfully' });
-    } catch (error) {
-      console.error('Error creating order:', error);
-      if (
-        error.message.includes('Invalid or expired promotion code') ||
-        error.message.includes('Order amount must be at least')
-      ) {
-        return res.status(400).json({ error: error.message });
-      }
-      res.status(500).json({ error: 'Failed to create order' });
-    }
-  },
+    // LẤY CHI TIẾT MỘT ĐƠN HÀNG (DÙNG CHO CẢ USER VÀ ADMIN)
+    getOrderById: async (req, res) => {
+        try {
+            const order = await Order.getById(req.params.id, req.user.user_id, req.user.role);
+            if (!order) {
+                return res.status(404).json({ error: 'Order not found or access denied' });
+            }
+            res.json(order);
+        } catch (error) {
+            console.error('Error fetching order by id:', error);
+            res.status(500).json({ error: 'Failed to fetch order' });
+        }
+    },
 
-  getOrders: async (req, res) => {
-    try {
-      const user_id = req.user.user_id;
-      const orders = await Order.getByUserId(user_id);
-      console.log('Orders fetched for user:', user_id, 'Data:', orders);
-      res.json(orders);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      res.status(500).json({ error: 'Failed to fetch orders' });
-    }
-  },
+    // LẤY TẤT CẢ ĐƠN HÀNG (CHỈ DÀNH CHO ADMIN)
+    getAllOrdersForAdmin: async (req, res) => {
+        try {
+            const orders = await Order.getAll();
+            res.json(orders);
+        } catch (error) {
+            console.error('Error fetching all orders for admin:', error);
+            res.status(500).json({ error: 'Failed to fetch all orders' });
+        }
+    },
 
-  getById: async (req, res) => {
-    try {
-      const { id } = req.params;
-      const user_id = req.query.user_id || req.user?.user_id; // Lấy user_id từ query hoặc token
-      console.log(`Fetching order by ID: ${id} for user: ${user_id}`);
+    // CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG (CHỈ DÀNH CHO ADMIN)
+    updateOrderStatus: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { status } = req.body;
+            const success = await Order.updateStatus(id, status);
+            if (!success) {
+                return res.status(404).json({ error: 'Order not found or status is invalid' });
+            }
+            const updatedOrder = await Order.getById(id, req.user.user_id, 'admin');
+            res.json(updatedOrder);
+        } catch (error) {
+            console.error('Error updating order status:', error);
+            res.status(500).json({ error: 'Failed to update order status' });
+        }
+    },
+     cancelOrder: async (req, res) => {
+        try {
+            const { id: order_id } = req.params;
+            const { user_id, role } = req.user;
 
-      const order = await Order.getById(id, user_id);
-      if (!order) {
-        return res.status(404).json({ error: 'Order not found' });
-      }
-      res.json(order);
-    } catch (error) {
-      console.error('Error fetching order:', error);
-      res.status(500).json({ error: 'Failed to fetch order' });
-    }
-  },
+            // Gọi hàm `cancel` từ model, truyền vào id đơn hàng, id và vai trò của người dùng
+            await Order.cancel(order_id, user_id, role);
+            
+            // Lấy lại thông tin đơn hàng đã được cập nhật để trả về cho client
+            const updatedOrder = await Order.getById(order_id, user_id, role);
+            res.json(updatedOrder);
 
-  getOrderById: async (req, res) => {
-    try {
-      const { id } = req.params;
-      const user_id = req.user.user_id;
-      console.log(`Fetching order by ID: ${id} for user: ${user_id}`);
-
-      const order = await Order.getById(id, user_id);
-      if (!order) {
-        return res.status(404).json({ error: 'Order not found' });
-      }
-
-      res.json(order);
-    } catch (error) {
-      console.error('Error fetching order:', error);
-      res.status(500).json({ error: 'Failed to fetch order' });
-    }
-  },
-
-  getAllOrders: async (req, res) => {
-    try {
-      console.log('Fetching all orders for user:', req.user);
-      const orders = await Order.getAll();
-      console.log('Orders fetched:', orders);
-      if (!orders || orders.length === 0) {
-        return res.status(200).json([]);
-      }
-      res.json(orders);
-    } catch (error) {
-      console.error('Error fetching all orders:', error);
-      res.status(500).json({ error: 'Failed to fetch all orders' });
-    }
-  },
-
-  updateOrderStatus: async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { status } = req.body;
-      if (!status) {
-        return res.status(400).json({ error: 'Missing status' });
-      }
-      const success = await Order.updateStatus(id, status);
-      if (!success) {
-        return res.status(404).json({ error: 'Order not found' });
-      }
-      res.json({ message: 'Order status updated successfully' });
-    } catch (error) {
-      console.error('Error updating order status:', error);
-      if (error.message === 'Invalid status') {
-        return res.status(400).json({ error: 'Invalid status' });
-      }
-      res.status(500).json({ error: 'Failed to update order status' });
-    }
-  },
+        } catch (error) {
+            console.error('Error cancelling order:', error.message);
+            if (error.message.includes('not found') || error.message.includes('permission')) {
+                return res.status(404).json({ error: error.message });
+            }
+            if (error.message.includes('Cannot cancel')) {
+                return res.status(400).json({ error: error.message }); // 400 Bad Request
+            }
+            res.status(500).json({ error: 'Failed to cancel order' });
+        }
+    },
 };
 
 module.exports = orderController;
+

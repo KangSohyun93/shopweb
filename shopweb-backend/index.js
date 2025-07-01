@@ -18,7 +18,10 @@ const port = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-
+app.use((err, req, res, next) => {
+  console.error('Global error handler:', err.stack);
+  res.status(500).json({ error: 'Internal server error', details: err.message });
+});
 // Routes
 app.use('/api/products', productRoutes);
 app.use('/api/users', userRoutes);
@@ -46,6 +49,10 @@ app.get('/test-db', async (req, res) => {
     console.error('Database connection error:', error);
     res.status(500).json({ error: 'Database connection failed' });
   }
+});
+app.use((req, res, next) => {
+  console.log('No route matched:', req.path);
+  res.status(404).json({ error: 'Route not found' });
 });
 
 // Start server
