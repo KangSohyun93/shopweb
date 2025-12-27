@@ -67,6 +67,11 @@ const LoginPage = () => {
         >
           Đăng nhập
         </button>
+        <div className="text-center mt-2">
+          <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
+            Quên mật khẩu?
+          </Link>
+        </div>
       </form>
       <p className="mt-4 text-center">
         Chưa có tài khoản?{' '}

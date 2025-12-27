@@ -246,8 +246,8 @@ const AdminDashboard = () => {
     };
 
 const filteredProducts = products.filter(product => {
-    const matchesCategoryFilter = !filterCategory || product.category_id == filterCategory;
-    const matchesBrandFilter = !filterBrand || product.brand_id == filterBrand;
+    const matchesCategoryFilter = !filterCategory || product.category_id === filterCategory;
+    const matchesBrandFilter = !filterBrand || product.brand_id === filterBrand;
     const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
     if (!lowerCaseSearchTerm) {
         return matchesCategoryFilter && matchesBrandFilter;
@@ -341,7 +341,7 @@ const filteredProducts = products.filter(product => {
                                 ) : (
                                     <div>
                                         <span className="font-semibold block">{item.name}</span>
-                                        <p className="text-xs text-gray-500">{categories.find(c => c.category_id == item.category_id)?.name} / {brands.find(b => b.brand_id == item.brand_id)?.name}</p>
+                                        <p className="text-xs text-gray-500">{categories.find(c => c.category_id === item.category_id)?.name} / {brands.find(b => b.brand_id === item.brand_id)?.name}</p>
                                     </div>
                                 )}
                             </td>

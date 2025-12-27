@@ -20,6 +20,18 @@ export const login = (email, password) =>
 export const signup = (userData) =>
   api.post('/users/signup', userData);
 
+export const verifyOTP = (email, otp) =>
+  api.post('/users/verify-otp', { email, otp });
+
+export const resendOTP = (email) =>
+  api.post('/users/resend-otp', { email });
+
+export const forgotPassword = (email) =>
+  api.post('/users/forgot-password', { email });
+
+export const resetPassword = (email, otp, newPassword) =>
+  api.post('/users/reset-password', { email, otp, newPassword });
+
 export const getAllProducts = () =>
   api.get('/products');
 

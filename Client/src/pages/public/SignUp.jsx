@@ -10,12 +10,15 @@ const SignUp = () => {
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
     try {
-      await signup({
+      const response = await signup({
         username,
         email,
         password,
@@ -23,9 +26,12 @@ const SignUp = () => {
         last_name: lastName,
         phone,
       });
-      navigate('/login'); // Chuyển hướng đến trang login sau khi đăng ký thành công
+      // Chuyển hướng đến trang xác thực OTP với email
+      navigate('/verify-otp', { state: { email } });
     } catch (err) {
-      setError(err.message || 'Failed to sign up. Please try again.');
+      setError(err.response?.data?.error || 'Đăng ký thất bại. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -96,9 +102,10 @@ const SignUp = () => {
         {error && <p className="text-red-500 text-sm">{error}</p>}
         <button
           type="submit"
-          className="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          disabled={loading}
+          className="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
-          Sign Up
+          {loading ? 'Đang đăng ký...' : 'Sign Up'}
         </button>
       </form>
       <p className="mt-4 text-center">

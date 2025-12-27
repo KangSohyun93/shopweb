@@ -5,6 +5,9 @@ import CustomerLayout from './layouts/CustomerLayout';
 
 import LoginPage from './pages/public/Login';
 import SignUpPage from './pages/public/SignUp';
+import VerifyOTPPage from './pages/public/VerifyOTP';
+import ForgotPasswordPage from './pages/public/ForgotPassword';
+import ResetPasswordPage from './pages/public/ResetPassword';
 import HomePage from './pages/customer/HomePage';
 import ProductDetailPage from './pages/customer/ProductDetailPage';
 import CartPage from './pages/customer/CartPage';
@@ -24,6 +27,9 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
+        <Route path="/verify-otp" element={<VerifyOTPPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         <Route element={<CustomerLayout />}>
           <Route path="/" element={<HomePage />} />

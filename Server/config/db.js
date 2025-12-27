@@ -7,6 +7,8 @@ const pool = mysql.createPool({
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
+    timezone: '+07:00', // Múi giờ Việt Nam (ICT)
+    dateStrings: true, // Trả về string thay vì Date object để tránh convert sai
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
