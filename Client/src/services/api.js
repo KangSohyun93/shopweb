@@ -98,4 +98,10 @@ export const cancelOrder = (orderId) => api.put(`/orders/${orderId}/cancel`);
 export const getAllAdminOrders = () => api.get('/orders/admin/all'); 
 export const getOrderDetails = (id) => api.get(`/orders/${id}`);
 export const updateOrderStatus = (id, status) => api.put(`/orders/${id}/status`, { status });
+
+// Profile APIs
+export const getMyProfile = () => api.get('/users/profile/me');
+export const updateProfile = (profileData) => api.put('/users/profile/me', profileData);
+export const changePassword = (passwordData) => api.put('/users/profile/change-password', passwordData);
+export const deleteAddress = (addressId) => api.delete(`/addresses/${addressId}`);
 export default api;

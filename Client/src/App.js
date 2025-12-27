@@ -15,6 +15,7 @@ import CheckoutPage from './pages/customer/CheckoutPage';
 import OrdersPage from './pages/customer/OrdersPage';
 import OrderDetailPage from './pages/customer/OrderDetail'; 
 import SearchResultsPage from './pages/customer/SearchResultsPage';
+import ProfilePage from './pages/customer/ProfilePage';
 import AdminDashboardPage from './pages/admin/AdminDashboard';
 import AdminOrdersPage from './pages/admin/AdminOrdersPage';
 import AdminOrderDetailPage from './pages/admin/AdminOrderDetail';
@@ -36,6 +37,7 @@ function App() {
           <Route path="/products/:id" element={<ProductDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/orders/:id" element={<OrderDetailPage />} />
           <Route path="/search" element={<SearchResultsPage />} />

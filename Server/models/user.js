@@ -78,6 +78,25 @@ const User = {
     getAll: async () => {
         const [rows] = await pool.query(`SELECT * FROM users`);
         return rows;
+    },
+
+    // Cập nhật thông tin profile
+    updateProfile: async (userId, profileData) => {
+        const { username, first_name, last_name, phone } = profileData;
+        const [result] = await pool.query(
+            `UPDATE users SET username = ?, first_name = ?, last_name = ?, phone = ? WHERE user_id = ?`,
+            [username, first_name, last_name, phone, userId]
+        );
+        return result.affectedRows > 0;
+    },
+
+    // Đổi mật khẩu (khác với forgot password)
+    changePassword: async (userId, newPasswordHash) => {
+        const [result] = await pool.query(
+            `UPDATE users SET password_hash = ? WHERE user_id = ?`,
+            [newPasswordHash, userId]
+        );
+        return result.affectedRows > 0;
     }
 };
 

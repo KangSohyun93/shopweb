@@ -46,4 +46,25 @@ router.get('/', authenticateJWT, async (req, res) => {
     }
 });
 
+router.delete('/:id', authenticateJWT, async (req, res) => {
+    try {
+        const user_id = req.user.user_id;
+        const address_id = req.params.id;
+
+        const [result] = await pool.query(
+            'DELETE FROM addresses WHERE address_id = ? AND user_id = ?',
+            [address_id, user_id]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Address not found or access denied' });
+        }
+
+        res.json({ message: 'Address deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting address:', error);
+        res.status(500).json({ error: 'Failed to delete address' });
+    }
+});
+
 module.exports = router;
