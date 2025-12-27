@@ -1,4 +1,5 @@
 const Order = require('../models/order');
+const Review = require('../models/review');
 
 const orderController = {
     // TẠO ĐƠN HÀNG MỚI
@@ -70,6 +71,12 @@ const orderController = {
         try {
             const { id: order_id } = req.params;
             const { user_id, role } = req.user;
+
+            // Kiểm tra xem đơn hàng có review nào không
+            const hasReviews = await Review.hasReviewsForOrder(order_id);
+            if (hasReviews) {
+                return res.status(400).json({ error: 'Không thể hủy đơn hàng đã được đánh giá' });
+            }
 
             // Gọi hàm `cancel` từ model, truyền vào id đơn hàng, id và vai trò của người dùng
             await Order.cancel(order_id, user_id, role);

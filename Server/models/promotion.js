@@ -60,7 +60,15 @@ const Promotion = {
 
         let discount = 0;
         if (promo.discount_type === 'percentage') {
-            discount = (total_amount * promo.discount_value) / 100;
+            // Parse discount_value thành số để tránh lỗi type string
+            const discountValue = parseFloat(promo.discount_value);
+            console.log('🔍 Debug Promotion:');
+            console.log('  Code:', code);
+            console.log('  Total amount:', total_amount);
+            console.log('  Discount value (raw):', promo.discount_value);
+            console.log('  Discount value (parsed):', discountValue);
+            discount = (total_amount * discountValue) / 100;
+            console.log('  Calculated discount:', discount);
         } else if (promo.discount_type === 'fixed') {
             discount = parseFloat(promo.discount_value);
         }
@@ -70,8 +78,12 @@ const Promotion = {
             new_total = 0;
         }
 
+        console.log('  Final new_total:', new_total);
+        console.log('  Final discount:', discount);
+
         return {
             promotion_id: promo.promotion_id,
+            discount: discount,
             new_total: new_total,
         };
     }

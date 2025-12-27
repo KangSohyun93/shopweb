@@ -70,6 +70,7 @@ const Checkout = () => {
             );
             setAppliedPromotion({
                 code: promotionCode,
+                discount: response.data.discount,
                 new_total: response.data.new_total,
             });
             setError(null);
@@ -115,9 +116,12 @@ const Checkout = () => {
         }
         
         try {
+            // Tính tổng giá gốc (chưa giảm) để gửi cho backend
+            const subtotal = cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            
             const orderData = {
                 address_id: addressIdToUse,
-                total_amount: calculateTotal(),
+                total_amount: subtotal, // Gửi giá gốc, backend sẽ tự apply promotion
                 promotion_code: appliedPromotion ? promotionCode : null,
                 items: cart.items.map((item) => ({
                     variant_id: item.variant_id,
@@ -197,7 +201,7 @@ const Checkout = () => {
             </div>
         ))}
                                 <div className="border-t pt-3 space-y-2">
-                                    {appliedPromotion && <div className="flex justify-between text-green-600"><span>Giảm giá ({promotionCode}):</span><span>- {(cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0) - appliedPromotion.new_total).toLocaleString('vi-VN')} VND</span></div>}
+                                    {appliedPromotion && <div className="flex justify-between text-green-600"><span>Giảm giá ({promotionCode}):</span><span>- {appliedPromotion.discount.toLocaleString('vi-VN')} VND</span></div>}
                                     <div className="flex justify-between font-bold text-lg"><span>Tổng cộng:</span><span className="text-red-600">{calculateTotal().toLocaleString('vi-VN')} VND</span></div>
                                 </div>
                             </div>

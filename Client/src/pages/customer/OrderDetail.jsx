@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getOrderDetails, cancelOrder } from '../../services/api'; 
+import { getOrderDetails, cancelOrder, createReview, updateReview, getUserReview } from '../../services/api'; 
+import ReviewModal from '../../components/ReviewModal'; 
 
 const OrderStatusTimeline = ({ currentStatus }) => {
     const steps = [
@@ -38,12 +39,32 @@ const OrderDetailPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isCancelling, setIsCancelling] = useState(false);
+    const [reviewModalOpen, setReviewModalOpen] = useState(false);
+    const [selectedProduct, setSelectedProduct] = useState(null);
+    const [productReviews, setProductReviews] = useState({});
 
     const fetchOrder = async () => {
         try {
             setLoading(true);
             const response = await getOrderDetails(id);
             setOrder(response.data);
+            
+            // Nếu đơn hàng đã hoàn thành, lấy reviews cho từng sản phẩm
+            if (response.data.status === 'delivered') {
+                const reviews = {};
+                for (const item of response.data.items) {
+                    try {
+                        const reviewRes = await getUserReview(item.product_id, id);
+                        if (reviewRes.data) {
+                            reviews[item.product_id] = reviewRes.data;
+                        }
+                    } catch (err) {
+                        // Sản phẩm chưa có review
+                        reviews[item.product_id] = null;
+                    }
+                }
+                setProductReviews(reviews);
+            }
         } catch (err) {
             console.error('Error fetching order:', err);
             setError('Không thể tải chi tiết đơn hàng hoặc bạn không có quyền truy cập.');
@@ -75,6 +96,30 @@ const OrderDetailPage = () => {
         }
     };
 
+    const handleOpenReviewModal = (product) => {
+        setSelectedProduct(product);
+        setReviewModalOpen(true);
+    };
+
+    const handleReviewSubmit = async (reviewData) => {
+        const existingReview = productReviews[selectedProduct.product_id];
+        
+        if (existingReview) {
+            // Cập nhật review
+            await updateReview(existingReview.review_id, reviewData);
+        } else {
+            // Tạo review mới
+            await createReview({
+                ...reviewData,
+                product_id: selectedProduct.product_id,
+                order_id: order.order_id
+            });
+        }
+        
+        // Refresh reviews
+        await fetchOrder();
+    };
+
     const calculateSubtotal = () => !order ? 0 : order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const subtotal = calculateSubtotal();
     const discountAmount = order ? subtotal - order.total_amount : 0;
@@ -98,29 +143,73 @@ const OrderDetailPage = () => {
                     <div className="lg:col-span-2">
                         <div className="bg-white p-6 rounded-lg shadow-md">
                             <h3 className="text-xl font-semibold mb-4">Sản phẩm trong đơn</h3>
-                            {order.items.map(item => (
-                                <div key={item.order_item_id} className="flex items-start justify-between border-b py-4 last:border-b-0">
-                                    <div className="flex items-start flex-grow">
-                                        <Link to={`/products/${item.product_id}`}>
-                                            <img 
-                                                src={item.primary_image_url || 'https://placehold.co/80'} 
-                                                alt={item.product_name} 
-                                                className="w-24 h-24 rounded-md object-cover mr-4 hover:opacity-80 transition-opacity"
-                                            />
-                                        </Link>
-                                        <div>
-                                            <Link to={`/products/${item.product_id}`} className="font-semibold text-gray-800 hover:text-blue-600 transition-colors">
-                                                {item.product_name}
+                            {order.items.map(item => {
+                                const itemReview = productReviews[item.product_id];
+                                return (
+                                <div key={item.order_item_id} className="border-b py-4 last:border-b-0">
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-start flex-grow">
+                                            <Link to={`/products/${item.product_id}`}>
+                                                <img 
+                                                    src={item.primary_image_url || 'https://placehold.co/80'} 
+                                                    alt={item.product_name} 
+                                                    className="w-24 h-24 rounded-md object-cover mr-4 hover:opacity-80 transition-opacity"
+                                                />
                                             </Link>
-                                            
-                                            <p className="text-sm text-gray-500">Phân loại: Size {item.size || 'N/A'}</p>
-                                            
-                                            <p className="text-sm text-gray-500">Số lượng: {item.quantity}</p>
+                                            <div className="flex-grow">
+                                                <Link to={`/products/${item.product_id}`} className="font-semibold text-gray-800 hover:text-blue-600 transition-colors">
+                                                    {item.product_name}
+                                                </Link>
+                                                <p className="text-sm text-gray-500">Phân loại: Size {item.size || 'N/A'}</p>
+                                                <p className="text-sm text-gray-500">Số lượng: {item.quantity}</p>
+                                                <p className="font-semibold mt-2">{(item.price * item.quantity).toLocaleString('vi-VN')} VND</p>
+                                                
+                                                {order.status === 'delivered' && (
+                                                    <div className="mt-3">
+                                                        {itemReview ? (
+                                                            <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <span className="text-yellow-500 text-lg">
+                                                                        {'★'.repeat(itemReview.rating)}{'☆'.repeat(5 - itemReview.rating)}
+                                                                    </span>
+                                                                    <span className="text-sm text-gray-600">({itemReview.rating}/5)</span>
+                                                                </div>
+                                                                {itemReview.comment && (
+                                                                    <p className="text-sm text-gray-700 mb-2">{itemReview.comment}</p>
+                                                                )}
+                                                                <div className="flex items-center gap-3">
+                                                                    <span className="text-xs text-gray-500">
+                                                                        Đã đánh giá {new Date(itemReview.created_at).toLocaleDateString('vi-VN')}
+                                                                    </span>
+                                                                    {itemReview.edit_count < 1 && (
+                                                                        <button
+                                                                            onClick={() => handleOpenReviewModal(item)}
+                                                                            className="text-xs text-blue-600 hover:text-blue-800 font-semibold"
+                                                                        >
+                                                                            ✏️ Sửa đánh giá
+                                                                        </button>
+                                                                    )}
+                                                                    {itemReview.edit_count >= 1 && (
+                                                                        <span className="text-xs text-gray-500">(Đã sửa 1/1 lần)</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => handleOpenReviewModal(item)}
+                                                                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition"
+                                                            >
+                                                                ⭐ Đánh giá sản phẩm
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                    <p className="font-semibold text-right min-w-[120px]">{(item.price * item.quantity).toLocaleString('vi-VN')} VND</p>
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
                     
@@ -166,6 +255,15 @@ const OrderDetailPage = () => {
                     </div>
                 </div>
             </div>
+            
+            <ReviewModal
+                isOpen={reviewModalOpen}
+                onClose={() => setReviewModalOpen(false)}
+                product={selectedProduct}
+                orderId={order?.order_id}
+                existingReview={selectedProduct ? productReviews[selectedProduct.product_id] : null}
+                onReviewSubmitted={handleReviewSubmit}
+            />
         </div>
     );
 };

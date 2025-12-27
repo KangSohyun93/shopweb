@@ -69,6 +69,15 @@ export const getProductById = (product_id) =>
 export const getReviews = (product_id) =>
   api.get(`/reviews${product_id ? `?product_id=${product_id}` : ''}`);
 
+export const createReview = (reviewData) =>
+  api.post('/reviews', reviewData);
+
+export const updateReview = (reviewId, reviewData) =>
+  api.put(`/reviews/${reviewId}`, reviewData);
+
+export const getUserReview = (product_id, order_id) =>
+  api.get(`/reviews/user-review?product_id=${product_id}&order_id=${order_id}`);
+
 export const applyPromotion = (code, total_amount) =>
   api.post('/promotions/apply', { code, total_amount });
 

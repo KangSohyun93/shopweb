@@ -3,11 +3,11 @@ const pool = require('../config/db');
 const Review = {
     // Tạo đánh giá mới
     create: async (review) => {
-        const { product_id, user_id, rating, comment } = review;
+        const { product_id, user_id, rating, comment, order_id } = review;
         const [result] = await pool.query(
-            `INSERT INTO reviews (product_id, user_id, rating, comment)
-             VALUES (?, ?, ?, ?)`,
-            [product_id, user_id, rating, comment]
+            `INSERT INTO reviews (product_id, user_id, rating, comment, order_id)
+             VALUES (?, ?, ?, ?, ?)`,
+            [product_id, user_id, rating, comment, order_id]
         );
         return result.insertId;
     },
@@ -49,7 +49,7 @@ const Review = {
     update: async (id, user_id, updateData) => {
         const { rating, comment } = updateData;
         const [result] = await pool.query(
-            `UPDATE reviews SET rating = ?, comment = ?
+            `UPDATE reviews SET rating = ?, comment = ?, edit_count = edit_count + 1
              WHERE review_id = ? AND user_id = ?`,
             [rating, comment, id, user_id]
         );
@@ -63,6 +63,46 @@ const Review = {
             [id, user_id]
         );
         return result.affectedRows > 0;
+    },
+
+    // Kiểm tra user đã mua sản phẩm và đơn hàng đã hoàn thành
+    checkUserPurchased: async (user_id, product_id) => {
+        const [rows] = await pool.query(
+            `SELECT oi.order_item_id 
+             FROM order_items oi
+             JOIN orders o ON oi.order_id = o.order_id
+             JOIN product_variants pv ON oi.variant_id = pv.variant_id
+             WHERE o.user_id = ? AND pv.product_id = ? AND o.status = 'delivered'
+             LIMIT 1`,
+            [user_id, product_id]
+        );
+        return rows.length > 0;
+    },
+
+    // Lấy review của user cho sản phẩm trong một đơn hàng cụ thể
+    getByUserAndProduct: async (user_id, product_id, order_id) => {
+        const [rows] = await pool.query(
+            `SELECT r.*, p.name as product_name
+             FROM reviews r
+             JOIN products p ON r.product_id = p.product_id
+             WHERE r.user_id = ? AND r.product_id = ? AND r.order_id = ?`,
+            [user_id, product_id, order_id]
+        );
+        return rows[0];
+    },
+
+    // Kiểm tra xem có review nào cho các sản phẩm trong đơn hàng không
+    hasReviewsForOrder: async (order_id) => {
+        const [rows] = await pool.query(
+            `SELECT r.review_id
+             FROM reviews r
+             JOIN order_items oi ON r.order_id = oi.order_id
+             JOIN product_variants pv ON oi.variant_id = pv.variant_id
+             WHERE oi.order_id = ? AND r.product_id = pv.product_id
+             LIMIT 1`,
+            [order_id]
+        );
+        return rows.length > 0;
     }
 };
 

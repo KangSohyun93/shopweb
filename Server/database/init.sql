@@ -105,6 +105,7 @@ CREATE TABLE orders (
     total_amount DECIMAL(10,2) NOT NULL,
     status ENUM('pending', 'processing', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (address_id) REFERENCES addresses(address_id) ON DELETE SET NULL,
     FOREIGN KEY (promotion_id) REFERENCES promotions(promotion_id) ON DELETE SET NULL
@@ -120,7 +121,56 @@ CREATE TABLE order_items (
     FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
     FOREIGN KEY (variant_id) REFERENCES product_variants(variant_id) ON DELETE SET NULL
 );
+-- Tạo bảng cart
+CREATE TABLE cart (
+    cart_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT,
+    total_amount DECIMAL(10,2) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Tạo bảng cart_items
+CREATE TABLE cart_items (
+    cart_item_id INT PRIMARY KEY AUTO_INCREMENT,
+    cart_id INT,
+    variant_id INT,
+    quantity INT NOT NULL,
+    FOREIGN KEY (cart_id) REFERENCES cart(cart_id) ON DELETE CASCADE,
+    FOREIGN KEY (variant_id) REFERENCES product_variants(variant_id) ON DELETE SET NULL
+);
+
+-- Tạo bảng payments
+CREATE TABLE payments (
+    payment_id INT PRIMARY KEY AUTO_INCREMENT,
+    order_id INT,
+    amount DECIMAL(10,2) NOT NULL,
+    method ENUM('cod', 'credit_card', 'paypal', 'bank_transfer') NOT NULL,
+    status ENUM('pending', 'completed', 'failed') DEFAULT 'pending',
+    transaction_id VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE
+);
+
+-- 10. Bảng reviews (Đánh giá sản phẩm)
+CREATE TABLE reviews (
+    review_id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT NOT NULL,
+    user_id INT NOT NULL,
+    order_id INT,
+    rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment TEXT,
+    edit_count INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE SET NULL
+);
 
 -- Chỉ mục tối ưu
 CREATE INDEX idx_user_email ON users(email);
 CREATE INDEX idx_product_sku ON product_variants(sku);
+CREATE INDEX idx_review_product ON reviews(product_id);
+CREATE INDEX idx_review_user ON reviews(user_id);
+CREATE INDEX idx_review_order ON reviews(order_id);
