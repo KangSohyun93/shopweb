@@ -53,6 +53,9 @@ const AdminOrderDetail = () => {
     shipped: 'Đang giao hàng',
     delivered: 'Đã giao hàng',
     cancelled: 'Đã hủy',
+    return_requested: 'Yêu cầu trả hàng',
+    returning: 'Đang hoàn hàng',
+    refunded: 'Đã hoàn tiền',
   };
 
   if (loading) return <p className="text-center py-10">Đang tải...</p>;
@@ -120,16 +123,73 @@ const AdminOrderDetail = () => {
                             <h3 className="text-xl font-semibold mb-4">Cập nhật trạng thái</h3>
                             <div className="space-y-3">
                                 <p><strong>Trạng thái hiện tại:</strong> <span className="font-bold text-blue-600">{statusLabels[order.status] || order.status}</span></p>
-                                <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full border rounded-lg px-3 py-2" disabled={isUpdating}>
-                                    <option value="pending">Đang xử lý</option>
-                                    <option value="processing">Đang chuẩn bị hàng</option> 
-                                    <option value="shipped">Đang giao hàng</option>
-                                    <option value="delivered">Đã giao hàng</option>
-                                    <option value="cancelled">Đã hủy</option>
-                                </select>
-                                <button onClick={handleUpdateStatus} className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow hover:bg-blue-700 transition disabled:bg-gray-400" disabled={isUpdating || order.status === status}>
-                                    {isUpdating ? 'Đang cập nhật...' : 'Lưu thay đổi'}
-                                </button>
+                                
+                                {order.status === 'return_requested' ? (
+                                    <div className="space-y-3">
+                                        <div className="bg-yellow-100 p-3 rounded text-sm text-yellow-800 mb-3">
+                                            <p className="font-semibold">⚠️ Khách hàng đã yêu cầu trả hàng</p>
+                                            {order.return_reason && (
+                                                <div className="mt-2 p-2 bg-white rounded border border-yellow-300">
+                                                    <p className="font-semibold text-gray-700 mb-1">Lý do:</p>
+                                                    <p className="text-gray-800">{order.return_reason}</p>
+                                                </div>
+                                            )}
+                                            <p className="mt-2">Vui lòng xem xét và phê duyệt yêu cầu này.</p>
+                                        </div>
+                                        <button 
+                                            onClick={() => {
+                                                setStatus('returning');
+                                                setTimeout(() => handleUpdateStatus(), 100);
+                                            }}
+                                            className="w-full bg-green-600 text-white px-4 py-2 rounded-lg font-semibold shadow hover:bg-green-700 transition disabled:bg-gray-400" 
+                                            disabled={isUpdating}
+                                        >
+                                            ✅ Chấp nhận - Chuyển sang hoàn hàng
+                                        </button>
+                                        <button 
+                                            onClick={() => {
+                                                setStatus('delivered');
+                                                setTimeout(() => handleUpdateStatus(), 100);
+                                            }}
+                                            className="w-full bg-red-600 text-white px-4 py-2 rounded-lg font-semibold shadow hover:bg-red-700 transition disabled:bg-gray-400" 
+                                            disabled={isUpdating}
+                                        >
+                                            ❌ Từ chối trả hàng
+                                        </button>
+                                    </div>
+                                ) : order.status === 'returning' ? (
+                                    <div className="space-y-3">
+                                        <div className="bg-blue-100 p-3 rounded text-sm text-blue-800 mb-3">
+                                            <p className="font-semibold">📦 Đang chờ nhận hàng trả lại</p>
+                                            <p className="mt-1">Sau khi nhận được hàng, xác nhận và hoàn tiền cho khách hàng.</p>
+                                        </div>
+                                        <button 
+                                            onClick={() => {
+                                                setStatus('refunded');
+                                                setTimeout(() => handleUpdateStatus(), 100);
+                                            }}
+                                            className="w-full bg-green-600 text-white px-4 py-2 rounded-lg font-semibold shadow hover:bg-green-700 transition disabled:bg-gray-400" 
+                                            disabled={isUpdating}
+                                        >
+                                            ✅ Đã nhận hàng - Hoàn tiền
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full border rounded-lg px-3 py-2" disabled={isUpdating}>
+                                            <option value="pending">Đang xử lý</option>
+                                            <option value="processing">Đang chuẩn bị hàng</option> 
+                                            <option value="shipped">Đang giao hàng</option>
+                                            <option value="delivered">Đã giao hàng</option>
+                                            <option value="cancelled">Đã hủy</option>
+                                            <option value="returning">Đang hoàn hàng</option>
+                                            <option value="refunded">Đã hoàn tiền</option>
+                                        </select>
+                                        <button onClick={handleUpdateStatus} className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow hover:bg-blue-700 transition disabled:bg-gray-400" disabled={isUpdating || order.status === status}>
+                                            {isUpdating ? 'Đang cập nhật...' : 'Lưu thay đổi'}
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         </div>
                         <div className="mt-4">

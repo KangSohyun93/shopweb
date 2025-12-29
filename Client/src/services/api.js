@@ -99,9 +99,40 @@ export const getAllAdminOrders = () => api.get('/orders/admin/all');
 export const getOrderDetails = (id) => api.get(`/orders/${id}`);
 export const updateOrderStatus = (id, status) => api.put(`/orders/${id}/status`, { status });
 
+// Return APIs
+export const checkCanReturn = (orderId) => api.get(`/orders/${orderId}/can-return`);
+export const requestReturn = (orderId, reason) => api.post(`/orders/${orderId}/return`, { reason });
+
 // Profile APIs
 export const getMyProfile = () => api.get('/users/profile/me');
 export const updateProfile = (profileData) => api.put('/users/profile/me', profileData);
 export const changePassword = (passwordData) => api.put('/users/profile/change-password', passwordData);
 export const deleteAddress = (addressId) => api.delete(`/addresses/${addressId}`);
+
+// Banner APIs
+export const getActiveBanners = () => api.get('/banners/active');
+export const getAllBanners = () => api.get('/banners');
+export const getBannerById = (id) => api.get(`/banners/${id}`);
+export const createBanner = (bannerData) => api.post('/banners', bannerData);
+export const updateBanner = (id, bannerData) => api.put(`/banners/${id}`, bannerData);
+export const updateBannerStatus = (id, isActive) => api.patch(`/banners/${id}/status`, { is_active: isActive });
+export const deleteBanner = (id) => api.delete(`/banners/${id}`);
+export const uploadBannerImage = (file) => {
+  const formData = new FormData();
+  formData.append('image', file);
+  return api.post('/banners/upload-image', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+};
+
+// Chat APIs
+export const getUserConversation = () => api.get('/chat/my-conversation');
+export const getChatMessages = (conversationId) => api.get(`/chat/${conversationId}/messages`);
+export const sendChatMessage = (conversationId, message) => api.post(`/chat/${conversationId}/messages`, { message });
+export const getAllConversations = () => api.get('/chat/admin/conversations');
+export const getConversationDetails = (conversationId) => api.get(`/chat/admin/conversations/${conversationId}`);
+export const closeConversation = (conversationId) => api.put(`/chat/admin/conversations/${conversationId}/close`);
+
 export default api;

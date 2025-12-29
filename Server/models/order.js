@@ -16,12 +16,13 @@ const Order = {
             throw new Error(`User_id ${user_id} not found`);
         }
 
+        // Chỉ cho phép tạo đơn với địa chỉ chưa bị xóa
         const [address] = await pool.query(
-            `SELECT address_id FROM addresses WHERE address_id = ? AND user_id = ?`,
+            `SELECT address_id FROM addresses WHERE address_id = ? AND user_id = ? AND is_deleted = 0`,
             [address_id, user_id]
         );
         if (!address.length) {
-            throw new Error(`Invalid address_id ${address_id} for user_id ${user_id}`);
+            throw new Error(`Invalid or deleted address_id ${address_id} for user_id ${user_id}`);
         }
 
          if (promotion_code) {
@@ -145,7 +146,7 @@ const Order = {
 
    getById: async (order_id, userId, userRole = 'customer') => {
     let query = `
-        SELECT o.*, a.recipient_name, a.phone, a.street, a.city, a.country, p.code as promotion_code, u.username
+        SELECT o.*, a.recipient_name, a.phone, a.street, a.city, a.country, p.code as promotion_code, u.username, u.email as user_email
         FROM orders o
         LEFT JOIN users u ON o.user_id = u.user_id
         LEFT JOIN addresses a ON o.address_id = a.address_id
@@ -196,15 +197,85 @@ const Order = {
 },
 
     updateStatus: async (order_id, status) => {
-        const validStatuses = ['pending','processing' ,'shipped', 'delivered', 'cancelled'];
+        const validStatuses = ['pending','processing' ,'shipped', 'delivered', 'cancelled', 'return_requested', 'returning', 'refunded'];
         if (!validStatuses.includes(status)) {
             throw new Error('Invalid status');
         }
 
+        // Nếu status là delivered, set delivered_at
+        const updates = status === 'delivered' 
+            ? `SET status = ?, delivered_at = NOW()` 
+            : `SET status = ?`;
+
         const [result] = await pool.query(
-            `UPDATE orders SET status = ? WHERE order_id = ?`,
+            `UPDATE orders ${updates} WHERE order_id = ?`,
             [status, order_id]
         );
+        return result.affectedRows > 0;
+    },
+
+    // Kiểm tra xem order có thể return không
+    canReturn: async (order_id, user_id) => {
+        const [orderRows] = await pool.query(
+            `SELECT o.status, o.delivered_at, o.order_id
+             FROM orders o 
+             WHERE o.order_id = ? AND o.user_id = ?`,
+            [order_id, user_id]
+        );
+
+        if (orderRows.length === 0) {
+            return { canReturn: false, reason: 'Order not found' };
+        }
+
+        const order = orderRows[0];
+
+        // Phải là delivered
+        if (order.status !== 'delivered') {
+            return { canReturn: false, reason: 'Order must be delivered' };
+        }
+
+        // Phải có delivered_at
+        if (!order.delivered_at) {
+            return { canReturn: false, reason: 'Delivery date not recorded' };
+        }
+
+        // Kiểm tra 7 ngày
+        const now = new Date();
+        const deliveredAt = new Date(order.delivered_at);
+        const daysSinceDelivery = (now - deliveredAt) / (1000 * 60 * 60 * 24);
+
+        if (daysSinceDelivery > 7) {
+            return { canReturn: false, reason: 'Return period expired (7 days)' };
+        }
+
+        // Kiểm tra đã review chưa - chỉ check reviews của đơn hàng này
+        const [reviewRows] = await pool.query(
+            `SELECT r.review_id 
+             FROM reviews r
+             WHERE r.order_id = ? AND r.user_id = ?`,
+            [order_id, user_id]
+        );
+
+        if (reviewRows.length > 0) {
+            return { canReturn: false, reason: 'Cannot return reviewed products' };
+        }
+
+        return { canReturn: true };
+    },
+
+    // Request return
+    requestReturn: async (order_id, user_id, reason) => {
+        const eligibility = await Order.canReturn(order_id, user_id);
+        
+        if (!eligibility.canReturn) {
+            throw new Error(eligibility.reason);
+        }
+
+        const [result] = await pool.query(
+            `UPDATE orders SET status = 'return_requested', return_reason = ? WHERE order_id = ? AND user_id = ?`,
+            [reason, order_id, user_id]
+        );
+
         return result.affectedRows > 0;
     },
     cancel: async (order_id, user_id, userRole = 'customer') => {

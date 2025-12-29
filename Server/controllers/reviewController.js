@@ -10,16 +10,16 @@ const reviewController = {
                 return res.status(400).json({ error: 'Missing or invalid fields' });
             }
 
-            // Kiểm tra user đã mua sản phẩm và đơn hàng đã hoàn thành
-            const hasPurchased = await Review.checkUserPurchased(user_id, product_id);
-            if (!hasPurchased) {
-                return res.status(403).json({ error: 'Bạn chỉ có thể đánh giá sản phẩm đã mua và nhận hàng' });
+            // Kiểm tra đơn hàng đã delivered và trong vòng 15 ngày
+            const orderCheck = await Review.checkOrderEligibleForReview(order_id, user_id);
+            if (!orderCheck.eligible) {
+                return res.status(403).json({ error: orderCheck.reason });
             }
 
             // Kiểm tra xem đã review cho sản phẩm trong đơn hàng này chưa
             const existingReview = await Review.getByUserAndProduct(user_id, product_id, order_id);
             if (existingReview) {
-                return res.status(400).json({ error: 'Đã đánh giá sản phẩm này rồi' });
+                return res.status(400).json({ error: 'Bạn đã đánh giá sản phẩm này trong đơn hàng này rồi' });
             }
 
             const reviewId = await Review.create({ product_id, user_id, rating, comment, order_id });
@@ -71,6 +71,12 @@ const reviewController = {
             }
             if (existingReview.edit_count >= 1) {
                 return res.status(400).json({ error: 'Bạn chỉ có thể sửa đánh giá 1 lần' });
+            }
+
+            // Kiểm tra 15 ngày cho update
+            const orderCheck = await Review.checkOrderEligibleForReview(existingReview.order_id, user_id);
+            if (!orderCheck.eligible) {
+                return res.status(403).json({ error: orderCheck.reason });
             }
 
             const success = await Review.update(req.params.id, user_id, { rating, comment });

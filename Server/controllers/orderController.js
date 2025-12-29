@@ -72,8 +72,8 @@ const orderController = {
             const { id: order_id } = req.params;
             const { user_id, role } = req.user;
 
-            // Kiểm tra xem đơn hàng có review nào không
-            const hasReviews = await Review.hasReviewsForOrder(order_id);
+            // Kiểm tra xem đơn hàng có review nào của user này không
+            const hasReviews = await Review.hasReviewsForOrder(order_id, user_id);
             if (hasReviews) {
                 return res.status(400).json({ error: 'Không thể hủy đơn hàng đã được đánh giá' });
             }
@@ -94,6 +94,37 @@ const orderController = {
                 return res.status(400).json({ error: error.message }); // 400 Bad Request
             }
             res.status(500).json({ error: 'Failed to cancel order' });
+        }
+    },
+
+    // Kiểm tra điều kiện return
+    checkCanReturn: async (req, res) => {
+        try {
+            const { id: order_id } = req.params;
+            const { user_id } = req.user;
+            
+            const result = await Order.canReturn(order_id, user_id);
+            res.json(result);
+        } catch (error) {
+            console.error('Error checking return eligibility:', error);
+            res.status(500).json({ error: 'Failed to check return eligibility' });
+        }
+    },
+
+    // Request return
+    requestReturn: async (req, res) => {
+        try {
+            const { id: order_id } = req.params;
+            const { user_id } = req.user;
+            const { reason } = req.body;
+            
+            await Order.requestReturn(order_id, user_id, reason);
+            const updatedOrder = await Order.getById(order_id, user_id, req.user.role);
+            
+            res.json({ message: 'Return request submitted successfully', order: updatedOrder });
+        } catch (error) {
+            console.error('Error requesting return:', error.message);
+            res.status(400).json({ error: error.message });
         }
     },
 };

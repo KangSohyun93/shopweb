@@ -15,6 +15,9 @@ const OrdersPage = () => {
         { key: 'processing', label: 'Đang chuẩn bị' },
         { key: 'shipped', label: 'Đang giao' },
         { key: 'delivered', label: 'Hoàn thành' },
+        { key: 'return_requested', label: '🔄 Yêu cầu trả hàng' },
+        { key: 'returning', label: '📦 Đang hoàn hàng' },
+        { key: 'refunded', label: '💰 Đã hoàn tiền' },
         { key: 'cancelled', label: 'Đã hủy' },
     ];
 
@@ -48,6 +51,9 @@ const OrdersPage = () => {
         processing: { text: 'Đang chuẩn bị', color: 'text-orange-600' },
         shipped: { text: 'Đang giao hàng', color: 'text-blue-600' },
         delivered: { text: 'Hoàn thành', color: 'text-green-600' },
+        return_requested: { text: 'Yêu cầu trả hàng', color: 'text-purple-600' },
+        returning: { text: 'Đang hoàn hàng', color: 'text-blue-600' },
+        refunded: { text: 'Đã hoàn tiền', color: 'text-teal-600' },
         cancelled: { text: 'Đã hủy', color: 'text-red-600' },
     };
 

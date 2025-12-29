@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getOrderDetails, cancelOrder, createReview, updateReview, getUserReview } from '../../services/api'; 
+import { getOrderDetails, cancelOrder, createReview, updateReview, getUserReview, checkCanReturn, requestReturn } from '../../services/api'; 
 import ReviewModal from '../../components/ReviewModal'; 
 
 const OrderStatusTimeline = ({ currentStatus }) => {
@@ -10,9 +10,23 @@ const OrderStatusTimeline = ({ currentStatus }) => {
         { key: 'shipped', label: 'Đang giao' },
         { key: 'delivered', label: 'Đã nhận' }
     ];
+    
     if (currentStatus === 'cancelled') {
         return <p className="text-center font-semibold text-red-600 bg-red-100 p-3 rounded-md">Đơn hàng đã bị hủy.</p>;
     }
+    
+    if (currentStatus === 'return_requested') {
+        return <p className="text-center font-semibold text-yellow-600 bg-yellow-100 p-3 rounded-md">🔄 Đang chờ xử lý yêu cầu trả hàng</p>;
+    }
+    
+    if (currentStatus === 'returning') {
+        return <p className="text-center font-semibold text-blue-600 bg-blue-100 p-3 rounded-md">📦 Đang hoàn hàng</p>;
+    }
+    
+    if (currentStatus === 'refunded') {
+        return <p className="text-center font-semibold text-green-600 bg-green-100 p-3 rounded-md">✅ Đã hoàn tiền</p>;
+    }
+    
     const statusIndex = steps.findIndex(step => step.key === currentStatus);
     return (
         <div className="flex justify-between items-start relative pt-4">
@@ -42,6 +56,8 @@ const OrderDetailPage = () => {
     const [reviewModalOpen, setReviewModalOpen] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [productReviews, setProductReviews] = useState({});
+    const [canReturn, setCanReturn] = useState({ canReturn: false, reason: '' });
+    const [isRequestingReturn, setIsRequestingReturn] = useState(false);
 
     const fetchOrder = async () => {
         try {
@@ -59,11 +75,19 @@ const OrderDetailPage = () => {
                             reviews[item.product_id] = reviewRes.data;
                         }
                     } catch (err) {
-                        // Sản phẩm chưa có review
+                        // Sản phẩm chưa có review trong đơn hàng này
                         reviews[item.product_id] = null;
                     }
                 }
                 setProductReviews(reviews);
+                
+                // Kiểm tra có thể return không
+                try {
+                    const returnCheck = await checkCanReturn(id);
+                    setCanReturn(returnCheck.data);
+                } catch (err) {
+                    console.error('Error checking return eligibility:', err);
+                }
             }
         } catch (err) {
             console.error('Error fetching order:', err);
@@ -118,6 +142,38 @@ const OrderDetailPage = () => {
         
         // Refresh reviews
         await fetchOrder();
+    };
+
+    const handleRequestReturn = async () => {
+        const reason = prompt('Vui lòng nhập lý do yêu cầu trả hàng:');
+        if (!reason || reason.trim() === '') {
+            alert('Vui lòng nhập lý do trả hàng');
+            return;
+        }
+
+        if (!window.confirm('Bạn có chắc chắn muốn yêu cầu trả hàng?')) {
+            return;
+        }
+
+        setIsRequestingReturn(true);
+        try {
+            await requestReturn(id, reason);
+            alert('Đã gửi yêu cầu trả hàng thành công!');
+            await fetchOrder();
+        } catch (err) {
+            alert(err.response?.data?.error || 'Không thể gửi yêu cầu trả hàng');
+        } finally {
+            setIsRequestingReturn(false);
+        }
+    };
+
+    // Helper: Kiểm tra xem có thể đánh giá không (trong 15 ngày)
+    const canReview = () => {
+        if (!order || !order.delivered_at) return false;
+        const deliveredAt = new Date(order.delivered_at);
+        const now = new Date();
+        const daysSinceDelivery = (now - deliveredAt) / (1000 * 60 * 60 * 24);
+        return daysSinceDelivery <= 15;
     };
 
     const calculateSubtotal = () => !order ? 0 : order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -181,7 +237,7 @@ const OrderDetailPage = () => {
                                                                     <span className="text-xs text-gray-500">
                                                                         Đã đánh giá {new Date(itemReview.created_at).toLocaleDateString('vi-VN')}
                                                                     </span>
-                                                                    {itemReview.edit_count < 1 && (
+                                                                    {itemReview.edit_count < 1 && canReview() && (
                                                                         <button
                                                                             onClick={() => handleOpenReviewModal(item)}
                                                                             className="text-xs text-blue-600 hover:text-blue-800 font-semibold"
@@ -192,15 +248,22 @@ const OrderDetailPage = () => {
                                                                     {itemReview.edit_count >= 1 && (
                                                                         <span className="text-xs text-gray-500">(Đã sửa 1/1 lần)</span>
                                                                     )}
+                                                                    {!canReview() && itemReview.edit_count < 1 && (
+                                                                        <span className="text-xs text-gray-500">(Đã quá 15 ngày)</span>
+                                                                    )}
                                                                 </div>
                                                             </div>
-                                                        ) : (
+                                                        ) : canReview() ? (
                                                             <button
                                                                 onClick={() => handleOpenReviewModal(item)}
                                                                 className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition"
                                                             >
                                                                 ⭐ Đánh giá sản phẩm
                                                             </button>
+                                                        ) : (
+                                                            <div className="text-sm text-gray-500 italic">
+                                                                Đã quá 15 ngày kể từ khi nhận hàng
+                                                            </div>
                                                         )}
                                                     </div>
                                                 )}
@@ -233,6 +296,77 @@ const OrderDetailPage = () => {
                                  >
                                      {isCancelling ? 'Đang xử lý...' : 'Hủy đơn hàng'}
                                  </button>
+                             </div>
+                        )}
+
+                        {/* Hiển thị phần trả hàng dựa trên trạng thái */}
+                        {order.status === 'delivered' ? (
+                            // Đơn đã giao - kiểm tra điều kiện trả hàng
+                            canReturn.canReturn ? (
+                                <div className="bg-white p-6 rounded-lg shadow-md">
+                                    <h3 className="text-xl font-semibold mb-4">Yêu cầu trả hàng</h3>
+                                    <p className="text-sm text-gray-600 mb-3">Bạn có thể yêu cầu trả hàng trong vòng 7 ngày sau khi nhận hàng.</p>
+                                    <button
+                                        onClick={handleRequestReturn}
+                                        disabled={isRequestingReturn}
+                                        className="w-full bg-yellow-100 text-yellow-700 border border-yellow-200 px-4 py-2 rounded-lg font-semibold shadow-sm hover:bg-yellow-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {isRequestingReturn ? 'Đang gửi yêu cầu...' : '📦 Yêu cầu trả hàng'}
+                                    </button>
+                                </div>
+                            ) : canReturn.reason ? (
+                                <div className="bg-white p-6 rounded-lg shadow-md">
+                                    <h3 className="text-xl font-semibold mb-4">Trả hàng</h3>
+                                    <div className="bg-gray-100 p-3 rounded text-sm text-gray-700">
+                                        <p className="font-semibold mb-1">❌ Không thể trả hàng</p>
+                                        <p>
+                                            {canReturn.reason === 'Cannot return reviewed products' 
+                                                ? 'Sản phẩm đã đánh giá không thể trả hàng.' 
+                                                : canReturn.reason === 'Return period expired (7 days)' 
+                                                ? 'Đã quá thời hạn 7 ngày trả hàng.' 
+                                                : canReturn.reason}
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : null
+                        ) : (order.status === 'pending' || order.status === 'processing' || order.status === 'shipped') ? (
+                            // Đơn chưa giao - hiển thị thông báo
+                            <div className="bg-white p-6 rounded-lg shadow-md">
+                                <h3 className="text-xl font-semibold mb-4">Trả hàng</h3>
+                                <div className="bg-blue-50 p-3 rounded text-sm text-blue-700">
+                                    <p className="font-semibold mb-1">ℹ️ Thông báo</p>
+                                    <p>Bạn có thể yêu cầu trả hàng sau khi đã nhận được sản phẩm.</p>
+                                </div>
+                            </div>
+                        ) : null}
+
+                        {order.status === 'return_requested' && (
+                             <div className="bg-white p-6 rounded-lg shadow-md">
+                                 <h3 className="text-xl font-semibold mb-4">Yêu cầu trả hàng</h3>
+                                 <div className="bg-blue-100 p-3 rounded text-sm text-blue-800">
+                                     <p className="font-semibold mb-1">🔄 Đang chờ xử lý</p>
+                                     <p>Yêu cầu trả hàng của bạn đang được xem xét. Chúng tôi sẽ liên hệ với bạn sớm nhất.</p>
+                                 </div>
+                             </div>
+                        )}
+                        
+                        {order.status === 'returning' && (
+                             <div className="bg-white p-6 rounded-lg shadow-md">
+                                 <h3 className="text-xl font-semibold mb-4">Đang hoàn hàng</h3>
+                                 <div className="bg-blue-100 p-3 rounded text-sm text-blue-800">
+                                     <p className="font-semibold mb-1">📦 Vui lòng trả hàng</p>
+                                     <p>Yêu cầu của bạn đã được chấp thuận. Vui lòng gửi hàng trả lại theo địa chỉ chúng tôi sẽ thông báo.</p>
+                                 </div>
+                             </div>
+                        )}
+                        
+                        {order.status === 'refunded' && (
+                             <div className="bg-white p-6 rounded-lg shadow-md">
+                                 <h3 className="text-xl font-semibold mb-4">Trạng thái hoàn tiền</h3>
+                                 <div className="bg-green-100 p-3 rounded text-sm text-green-800">
+                                     <p className="font-semibold mb-1">✅ Đã hoàn tiền</p>
+                                     <p>Đơn hàng đã được hoàn tiền thành công.</p>
+                                 </div>
                              </div>
                         )}
                         

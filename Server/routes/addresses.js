@@ -34,8 +34,9 @@ router.get('/', authenticateJWT, async (req, res) => {
     try {
         const user_id = req.user.user_id;
 
+        // Chỉ lấy địa chỉ chưa bị xóa (soft delete)
         const [addresses] = await pool.query(
-            'SELECT * FROM addresses WHERE user_id = ? ORDER BY is_default DESC, address_id DESC',
+            'SELECT * FROM addresses WHERE user_id = ? AND is_deleted = 0 ORDER BY is_default DESC, address_id DESC',
             [user_id]
         );
 
@@ -51,8 +52,9 @@ router.delete('/:id', authenticateJWT, async (req, res) => {
         const user_id = req.user.user_id;
         const address_id = req.params.id;
 
+        // Soft delete: đánh dấu is_deleted = 1 thay vì xóa hẳn
         const [result] = await pool.query(
-            'DELETE FROM addresses WHERE address_id = ? AND user_id = ?',
+            'UPDATE addresses SET is_deleted = 1, deleted_at = NOW(), is_default = 0 WHERE address_id = ? AND user_id = ?',
             [address_id, user_id]
         );
 

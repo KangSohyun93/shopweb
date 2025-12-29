@@ -79,6 +79,41 @@ const Review = {
         return rows.length > 0;
     },
 
+    // Kiểm tra đơn hàng có thể đánh giá không (delivered + trong 15 ngày)
+    checkOrderEligibleForReview: async (order_id, user_id) => {
+        const [rows] = await pool.query(
+            `SELECT status, delivered_at 
+             FROM orders 
+             WHERE order_id = ? AND user_id = ?`,
+            [order_id, user_id]
+        );
+
+        if (rows.length === 0) {
+            return { eligible: false, reason: 'Đơn hàng không tồn tại' };
+        }
+
+        const order = rows[0];
+
+        if (order.status !== 'delivered') {
+            return { eligible: false, reason: 'Chỉ có thể đánh giá đơn hàng đã nhận' };
+        }
+
+        if (!order.delivered_at) {
+            return { eligible: false, reason: 'Chưa có thông tin ngày giao hàng' };
+        }
+
+        // Kiểm tra 15 ngày
+        const now = new Date();
+        const deliveredAt = new Date(order.delivered_at);
+        const daysSinceDelivery = (now - deliveredAt) / (1000 * 60 * 60 * 24);
+
+        if (daysSinceDelivery > 15) {
+            return { eligible: false, reason: 'Đã quá 15 ngày kể từ khi nhận hàng' };
+        }
+
+        return { eligible: true };
+    },
+
     // Lấy review của user cho sản phẩm trong một đơn hàng cụ thể
     getByUserAndProduct: async (user_id, product_id, order_id) => {
         const [rows] = await pool.query(
@@ -91,16 +126,14 @@ const Review = {
         return rows[0];
     },
 
-    // Kiểm tra xem có review nào cho các sản phẩm trong đơn hàng không
-    hasReviewsForOrder: async (order_id) => {
+    // Kiểm tra xem có review nào cho đơn hàng của user này không
+    hasReviewsForOrder: async (order_id, user_id) => {
         const [rows] = await pool.query(
             `SELECT r.review_id
              FROM reviews r
-             JOIN order_items oi ON r.order_id = oi.order_id
-             JOIN product_variants pv ON oi.variant_id = pv.variant_id
-             WHERE oi.order_id = ? AND r.product_id = pv.product_id
+             WHERE r.order_id = ? AND r.user_id = ?
              LIMIT 1`,
-            [order_id]
+            [order_id, user_id]
         );
         return rows.length > 0;
     }

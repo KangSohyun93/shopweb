@@ -13,6 +13,9 @@ const StatusUpdater = ({ order, onStatusChange }) => {
         shipped: 'border-blue-500 text-blue-800',
         delivered: 'border-green-500 text-green-800',
         cancelled: 'border-red-500 text-red-800',
+        return_requested: 'border-purple-500 text-purple-800',
+        returning: 'border-blue-500 text-blue-800',
+        refunded: 'border-teal-500 text-teal-800',
         unknown: 'border-gray-300 text-gray-800'
     };
 
@@ -22,6 +25,8 @@ const StatusUpdater = ({ order, onStatusChange }) => {
         { value: 'shipped', label: 'Đang giao' },
         { value: 'delivered', label: 'Hoàn thành' },
         { value: 'cancelled', label: 'Đã hủy' },
+        { value: 'returning', label: 'Đang hoàn hàng' },
+        { value: 'refunded', label: 'Đã hoàn tiền' },
     ];
 
     const handleSelectChange = async (e) => {
@@ -78,6 +83,9 @@ const AdminOrdersPage = () => {
         { key: 'shipped', label: 'Đang giao' },
         { key: 'delivered', label: 'Hoàn thành' },
         { key: 'cancelled', label: 'Đã hủy' },
+        { key: 'return_requested', label: '🔄 Yêu cầu trả hàng' },
+        { key: 'returning', label: '📦 Đang hoàn hàng' },
+        { key: 'refunded', label: 'Đã hoàn tiền' },
     ];
 
     useEffect(() => {

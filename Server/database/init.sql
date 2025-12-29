@@ -83,7 +83,7 @@ CREATE TABLE product_images (
     FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE
 );
 
--- 7. Bảng addresses
+-- 7. Bảng addresses (Với soft delete để giữ lịch sử đơn hàng)
 CREATE TABLE addresses (
     address_id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT,
@@ -93,6 +93,9 @@ CREATE TABLE addresses (
     city VARCHAR(50) NOT NULL,
     country VARCHAR(50) NOT NULL,
     is_default BOOLEAN DEFAULT FALSE,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    deleted_at DATETIME DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
@@ -103,7 +106,9 @@ CREATE TABLE orders (
     address_id INT,
     promotion_id INT,
     total_amount DECIMAL(10,2) NOT NULL,
-    status ENUM('pending', 'processing', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending',
+    status ENUM('pending', 'processing', 'shipped', 'delivered', 'cancelled', 'return_requested', 'returning', 'refunded') DEFAULT 'pending',
+    return_reason TEXT DEFAULT NULL,
+    delivered_at DATETIME DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
