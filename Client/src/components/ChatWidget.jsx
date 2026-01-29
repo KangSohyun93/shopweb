@@ -40,10 +40,14 @@ const ChatWidget = () => {
     // Listen for new messages
     const handleNewMessage = (data) => {
       if (data.conversationId === conversationId) {
-        setMessages((prev) => [...prev, data]);
-        
-        // Mark as read
-        socket.emit('chat:mark-read', conversationId);
+        // Chỉ thêm tin nhắn từ admin, không thêm tin nhắn của chính mình
+        // (tin nhắn của user đã được thêm qua handleMessageSent)
+        if (data.sender_type === 'admin') {
+          setMessages((prev) => [...prev, data]);
+          
+          // Mark as read
+          socket.emit('chat:mark-read', conversationId);
+        }
       }
     };
 

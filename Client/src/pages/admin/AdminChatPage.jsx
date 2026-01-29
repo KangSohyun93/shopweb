@@ -169,34 +169,6 @@ const AdminChatPage = () => {
     }, 2000);
   };
 
-  const handleCloseConversation = async (conversationId) => {
-    const isOpen = selectedConversation?.status === 'open';
-    const confirmMsg = isOpen 
-      ? 'Bạn có chắc chắn muốn đóng cuộc trò chuyện này?' 
-      : 'Bạn có muốn mở lại cuộc trò chuyện này?';
-    
-    if (!window.confirm(confirmMsg)) return;
-
-    try {
-      await closeConversation(conversationId);
-      const successMsg = isOpen ? 'Đã đóng cuộc trò chuyện' : 'Đã mở lại cuộc trò chuyện';
-      alert(successMsg);
-      loadConversations();
-      
-      // Reload current conversation to update status
-      if (selectedConversation?.conversation_id === conversationId) {
-        const response = await getConversationDetails(conversationId);
-        setSelectedConversation({
-          ...selectedConversation,
-          status: response.data.status
-        });
-      }
-    } catch (error) {
-      console.error('Error toggling conversation:', error);
-      alert('Không thể thay đổi trạng thái cuộc trò chuyện');
-    }
-  };
-
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -252,7 +224,7 @@ const AdminChatPage = () => {
                           : 'bg-gray-100 text-gray-800'
                       }`}
                     >
-                      {conv.status === 'open' ? 'Mở' : 'Đã đóng'}
+                      {conv.status === 'open' ? '' : ''}
                     </span>
                   </div>
                 </div>
