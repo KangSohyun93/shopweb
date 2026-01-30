@@ -34,4 +34,8 @@ const isAdmin = (req, res, next) => {
     next();
 };
 
-module.exports = { authenticateJWT, isAdmin };
+// Alias for requireAdmin
+const requireAdmin = isAdmin;
+const authenticateToken = authenticateJWT;
+
+module.exports = { authenticateJWT, authenticateToken, isAdmin, requireAdmin };

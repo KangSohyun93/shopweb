@@ -23,6 +23,7 @@ const AdminNavbar = () => {
                             <div className="flex items-baseline space-x-4">
                                 <NavLink to="/admin/dashboard" className={linkClass}>Dashboard</NavLink>
                                 <NavLink to="/admin/orders" className={linkClass}>Đơn hàng</NavLink>
+                                <NavLink to="/admin/users" className={linkClass}>Người dùng</NavLink>
                                 <NavLink to="/admin/banners" className={linkClass}>Banner</NavLink>
                                 <NavLink to="/admin/chat" className={linkClass}>Chat</NavLink>
                             </div>

@@ -13,6 +13,7 @@ const categoryRoutes = require('./routes/categoryRoutes');
 const brandRoutes = require('./routes/brandRoutes');
 const bannerRoutes = require('./routes/bannerRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const adminUserRoutes = require('./routes/adminUserRoutes');
 const cors = require('cors');
 require('dotenv').config();
 
@@ -46,6 +47,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/brands', brandRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/admin/users', adminUserRoutes);
 
 
 // Root endpoint

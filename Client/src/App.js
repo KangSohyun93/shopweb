@@ -21,6 +21,7 @@ import AdminOrdersPage from './pages/admin/AdminOrdersPage';
 import AdminOrderDetailPage from './pages/admin/AdminOrderDetail';
 import AdminBannersPage from './pages/admin/AdminBannersPage';
 import AdminChatPage from './pages/admin/AdminChatPage';
+import AdminUsersPage from './pages/admin/AdminUsersPage';
 
 import './App.css';
 
@@ -49,6 +50,7 @@ function App() {
           <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
           <Route path="/admin/orders" element={<AdminOrdersPage />} />
           <Route path="/admin/orders/:id" element={<AdminOrderDetailPage />} />
+          <Route path="/admin/users" element={<AdminUsersPage />} />
           <Route path="/admin/banners" element={<AdminBannersPage />} />
           <Route path="/admin/chat" element={<AdminChatPage />} />
         </Route>
