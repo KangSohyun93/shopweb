@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getOrderDetails, cancelOrder, createReview, updateReview, getUserReview, checkCanReturn, requestReturn } from '../../services/api'; 
 import ReviewModal from '../../components/ReviewModal'; 
@@ -59,7 +59,7 @@ const OrderDetailPage = () => {
     const [canReturn, setCanReturn] = useState({ canReturn: false, reason: '' });
     const [isRequestingReturn, setIsRequestingReturn] = useState(false);
 
-    const fetchOrder = async () => {
+    const fetchOrder = useCallback(async () => {
         try {
             setLoading(true);
             const response = await getOrderDetails(id);
@@ -95,13 +95,13 @@ const OrderDetailPage = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id]);
     
     useEffect(() => {
         if (id) {
            fetchOrder();
         }
-    }, [id]);
+    }, [id, fetchOrder]);
     
     const handleCancelOrder = async () => {
         if (!window.confirm('Bạn có chắc chắn muốn hủy đơn hàng này không? Thao tác này không thể hoàn tác.')) {
@@ -218,7 +218,7 @@ const OrderDetailPage = () => {
                                                 </Link>
                                                 <p className="text-sm text-gray-500">Phân loại: Size {item.size || 'N/A'}</p>
                                                 <p className="text-sm text-gray-500">Số lượng: {item.quantity}</p>
-                                                <p className="font-semibold mt-2">{(item.price * item.quantity).toLocaleString('vi-VN')} VND</p>
+                                                <p className="font-semibold mt-2">{(item.price * item.quantity).toLocaleString('vi-VN')} $</p>
                                                 
                                                 {order.status === 'delivered' && (
                                                     <div className="mt-3">
@@ -381,9 +381,9 @@ const OrderDetailPage = () => {
                         <div className="bg-white p-6 rounded-lg shadow-md">
                              <h3 className="text-xl font-semibold mb-4">Tóm tắt thanh toán</h3>
                              <div className="space-y-2 text-gray-700">
-                                <div className="flex justify-between"><span>Tạm tính:</span><span>{subtotal.toLocaleString('vi-VN')} VND</span></div>
-                                {discountAmount > 0 && <div className="flex justify-between text-green-600"><span>Giảm giá ({order.promotion_code}):</span><span>- {discountAmount.toLocaleString('vi-VN')} VND</span></div>}
-                                <div className="border-t pt-2 mt-2 flex justify-between font-bold text-lg"><span>Tổng cộng:</span><span className="text-red-600">{order.total_amount.toLocaleString('vi-VN')} VND</span></div>
+                                <div className="flex justify-between"><span>Tạm tính:</span><span>{subtotal.toLocaleString('vi-VN')} $</span></div>
+                                {discountAmount > 0 && <div className="flex justify-between text-green-600"><span>Giảm giá ({order.promotion_code}):</span><span>- {discountAmount.toLocaleString('vi-VN')} $</span></div>}
+                                <div className="border-t pt-2 mt-2 flex justify-between font-bold text-lg"><span>Tổng cộng:</span><span className="text-red-600">{order.total_amount.toLocaleString('vi-VN')} $</span></div>
                              </div>
                         </div>
                     </div>

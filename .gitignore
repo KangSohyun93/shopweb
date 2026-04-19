@@ -62,10 +62,32 @@ pnpm-lock.yaml
 uploads/
 static/uploads/
 
+# Datasets (large files - not needed in repo)
+datasets/
+*.csv
+*.txt
+
 # Database
 *.sqlite
 *.sqlite3
 *.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Worker output
+worker/__pycache__/
+worker/*.pyc
 
 # Misc
 .eslintcache

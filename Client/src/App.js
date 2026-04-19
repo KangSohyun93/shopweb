@@ -9,6 +9,7 @@ import VerifyOTPPage from './pages/public/VerifyOTP';
 import ForgotPasswordPage from './pages/public/ForgotPassword';
 import ResetPasswordPage from './pages/public/ResetPassword';
 import HomePage from './pages/customer/HomePage';
+import CategoryPage from './pages/customer/CategoryPage';
 import ProductDetailPage from './pages/customer/ProductDetailPage';
 import CartPage from './pages/customer/CartPage';
 import CheckoutPage from './pages/customer/CheckoutPage';
@@ -22,6 +23,7 @@ import AdminOrderDetailPage from './pages/admin/AdminOrderDetail';
 import AdminBannersPage from './pages/admin/AdminBannersPage';
 import AdminChatPage from './pages/admin/AdminChatPage';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
+import AIRulesDashboard from './pages/admin/AIRulesDashboard';
 
 import './App.css';
 
@@ -37,6 +39,7 @@ function App() {
 
         <Route element={<CustomerLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/category/:categoryId" element={<CategoryPage />} />
           <Route path="/products/:id" element={<ProductDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
@@ -53,6 +56,7 @@ function App() {
           <Route path="/admin/users" element={<AdminUsersPage />} />
           <Route path="/admin/banners" element={<AdminBannersPage />} />
           <Route path="/admin/chat" element={<AdminChatPage />} />
+          <Route path="/admin/ai-rules" element={<AIRulesDashboard />} />
         </Route>
       </Routes>
     </Router>

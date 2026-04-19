@@ -111,7 +111,7 @@ const CartPage = () => {
                                 </div>
                                 <div className="flex flex-col items-end min-w-[120px]">
                                     <p className="text-xl text-gray-800 font-semibold">
-                                        {Number(item.price).toLocaleString('vi-VN')} VND
+                                        {Number(item.price).toLocaleString('vi-VN')} $
                                     </p>
                                     <button onClick={() => handleDeleteItem(item.cart_item_id)} className="text-red-500 hover:text-red-700 mt-4 text-sm underline">Xóa</button>
                                 </div>
@@ -119,7 +119,7 @@ const CartPage = () => {
                         ))}
                     </div>
                     <div className="mt-10 flex flex-col md:flex-row items-center justify-between gap-4">
-                        <div className="text-xl font-bold text-[#22336b]">Tổng cộng: <span className="text-[#bfa14a]">{calculateTotal().toLocaleString('vi-VN')} VND</span></div>
+                        <div className="text-xl font-bold text-[#22336b]">Tổng cộng: <span className="text-[#bfa14a]">{calculateTotal().toLocaleString('vi-VN')} $</span></div>
                         <Link to="/checkout" className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-3 rounded-xl font-semibold shadow hover:from-blue-700 hover:to-indigo-700 transition">Tiến hành thanh toán</Link>
                     </div>
                 </div>

@@ -135,4 +135,14 @@ export const getAllConversations = () => api.get('/chat/admin/conversations');
 export const getConversationDetails = (conversationId) => api.get(`/chat/admin/conversations/${conversationId}`);
 export const closeConversation = (conversationId) => api.put(`/chat/admin/conversations/${conversationId}/close`);
 
+// Recommendation API
+export const getRecommendations = async (productId) => {
+    try {
+        const response = await axios.get(`${API_URL}/recommendations/${productId}`);
+        return response.data;
+    } catch (error) {
+        console.error('Lỗi lấy gợi ý:', error);
+        throw error;
+    }
+};
 export default api;

@@ -197,12 +197,12 @@ const Checkout = () => {
                                             <p className="text-gray-500">Phân loại: Size {item.size || 'N/A'}</p>
                     <p className="text-gray-500">Số lượng: x{item.quantity}</p>
                 </div>
-                <p className="font-semibold">{(item.price * item.quantity).toLocaleString('vi-VN')} VND</p>
+                <p className="font-semibold">{(item.price * item.quantity).toLocaleString('vi-VN')} $</p>
             </div>
         ))}
                                 <div className="border-t pt-3 space-y-2">
-                                    {appliedPromotion && <div className="flex justify-between text-green-600"><span>Giảm giá ({promotionCode}):</span><span>- {appliedPromotion.discount.toLocaleString('vi-VN')} VND</span></div>}
-                                    <div className="flex justify-between font-bold text-lg"><span>Tổng cộng:</span><span className="text-red-600">{calculateTotal().toLocaleString('vi-VN')} VND</span></div>
+                                    {appliedPromotion && <div className="flex justify-between text-green-600"><span>Giảm giá ({promotionCode}):</span><span>- {appliedPromotion.discount.toLocaleString('vi-VN')} $</span></div>}
+                                    <div className="flex justify-between font-bold text-lg"><span>Tổng cộng:</span><span className="text-red-600">{calculateTotal().toLocaleString('vi-VN')} $</span></div>
                                 </div>
                             </div>
                         ) : (<p>Giỏ hàng trống</p>)}

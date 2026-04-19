@@ -55,7 +55,7 @@ const Promotion = {
         }
         if (total_amount < (promo.min_order_value || 0)) {
             const minOrderValueFormatted = Number(promo.min_order_value).toLocaleString('vi-VN');
-            throw new Error(`Đơn hàng phải đạt tối thiểu ${minOrderValueFormatted} VND để sử dụng mã này.`);
+            throw new Error(`Đơn hàng phải đạt tối thiểu ${minOrderValueFormatted} $ để sử dụng mã này.`);
         }
 
         let discount = 0;

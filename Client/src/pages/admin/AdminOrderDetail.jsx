@@ -97,7 +97,7 @@ const AdminOrderDetail = () => {
                                             </div>
                                         </div>
                                         <p className="font-semibold text-gray-800 text-right min-w-[120px]">
-                                            {(Number(item.price) * Number(item.quantity)).toLocaleString('vi-VN')} VND
+                                            {(Number(item.price) * Number(item.quantity)).toLocaleString('vi-VN')} $
                                         </p>
                                     </div>
                                 ))}
@@ -112,7 +112,7 @@ const AdminOrderDetail = () => {
                             <div className="space-y-2">
                                 <p><strong>Khách hàng:</strong> {order.username || 'N/A'} ({order.user_email || 'N/A'})</p>
                                 <p><strong>Ngày đặt:</strong> {new Date(order.created_at).toLocaleString('vi-VN')}</p>
-                                <p><strong>Tổng tiền:</strong> <span className="font-bold text-xl text-red-600">{Number(order.total_amount).toLocaleString('vi-VN')} VND</span></p>
+                                <p><strong>Tổng tiền:</strong> <span className="font-bold text-xl text-red-600">{Number(order.total_amount).toLocaleString('vi-VN')} $</span></p>
                                 {order.promotion_code && <p><strong>Mã giảm giá:</strong> {order.promotion_code}</p>}
                                 <p><strong>Địa chỉ:</strong> {`${order.recipient_name}, ${order.street}, ${order.city}, ${order.country}`}</p>
                                 <p><strong>Số điện thoại:</strong> {order.phone}</p>

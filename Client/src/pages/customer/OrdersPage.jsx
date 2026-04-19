@@ -125,7 +125,7 @@ const OrdersPage = () => {
 
                 <div className="p-4 bg-gray-50 rounded-b-lg flex flex-col md:flex-row justify-end items-center gap-4 text-right">
                     <p className="text-lg">
-                        Thành tiền: <span className="font-bold text-red-600">{Number(order.total_amount).toLocaleString('vi-VN')} VND</span>
+                        Thành tiền: <span className="font-bold text-red-600">{Number(order.total_amount).toLocaleString('vi-VN')} $</span>
                     </p>
                     <Link to={`/orders/${order.order_id}`} className="px-5 py-2 bg-blue-600 text-white rounded-md font-semibold shadow hover:bg-blue-700 transition">
                         Xem chi tiết

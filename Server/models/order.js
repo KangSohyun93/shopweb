@@ -184,16 +184,31 @@ const Order = {
     
 
     // lấy tất cả đơn hàng
-    getAll: async () => {
+    getAll: async (page = 1, limit = 50) => {
+    const offset = (page - 1) * limit;
+    
+    // Lấy 50 đơn hàng của trang hiện tại
     const [rows] = await pool.query(
         `SELECT o.*, u.email as user_email, a.recipient_name, a.street, a.city, a.country, p.code as promotion_code
          FROM orders o
          LEFT JOIN users u ON o.user_id = u.user_id
          LEFT JOIN addresses a ON o.address_id = a.address_id
          LEFT JOIN promotions p ON o.promotion_id = p.promotion_id
-         ORDER BY o.created_at DESC`
+         ORDER BY o.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [Number(limit), Number(offset)]
     );
-    return rows;
+    
+    // Lấy tổng số lượng đơn hàng (để Frontend biết có bao nhiêu trang)
+    const [countResult] = await pool.query('SELECT COUNT(*) as total FROM orders');
+    const totalOrders = countResult[0].total;
+
+    return {
+        data: rows,
+        total: totalOrders,
+        currentPage: Number(page),
+        totalPages: Math.ceil(totalOrders / limit)
+    };
 },
 
     updateStatus: async (order_id, status) => {

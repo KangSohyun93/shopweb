@@ -377,12 +377,12 @@ const filteredProducts = products.filter(product => {
                                 {isEditing ? (
                                     <div>
                                         <input type="file" accept="image/*" multiple onChange={(e) => Array.from(e.target.files).forEach(file => handleImageUpload(product.product_id, file, 'upload-additional-image', 'additional_images', true))} className="w-full text-xs" />
-                                        <div className="grid grid-cols-3 gap-1 mt-2">{item.additional_images?.map(img => (
+                                        <div className="grid grid-cols-3 gap-1 mt-2">{item.additional_images?.filter(img => img.image_url !== item.primary_image_url).map(img => (
                                             <div key={img.image_id} className="relative"><img src={img.image_url} alt="Ảnh phụ" className="w-12 h-12 object-cover rounded border" /><button onClick={() => handleAdditionalImageDelete(product.product_id, img.image_id)} className="absolute top-0 right-0 bg-red-600 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center -mt-1 -mr-1">X</button></div>
                                         ))}</div>
                                     </div>
                                 ) : (
-                                    <div className="grid grid-cols-3 gap-1">{item.additional_images?.map(img => <img key={img.image_id} src={img.image_url} alt="Ảnh phụ" className="w-12 h-12 object-cover rounded border"/>)}</div>
+                                    <div className="grid grid-cols-3 gap-1">{item.additional_images?.filter(img => img.image_url !== item.primary_image_url).map(img => <img key={img.image_id} src={img.image_url} alt="Ảnh phụ" className="w-12 h-12 object-cover rounded border"/>)}</div>
                                 )}
                             </td>
                             

@@ -4,7 +4,8 @@ const ProductVariant = {
     // Lấy tất cả biến thể
     getAll: async (product_id) => {
         let query = `
-            SELECT pv.*, p.name AS product_name, p.description AS product_description, b.name AS brand_name, c.name AS category_name
+            SELECT pv.variant_id, pv.product_id, pv.sku, pv.size, pv.price, pv.stock_quantity, pv.weight,
+                p.name AS product_name, p.description AS product_description, b.name AS brand_name, c.name AS category_name
             FROM product_variants pv
             LEFT JOIN products p ON pv.product_id = p.product_id
             LEFT JOIN brands b ON p.brand_id = b.brand_id
@@ -16,6 +17,7 @@ const ProductVariant = {
             params.push(product_id);
         }
         const [rows] = await pool.query(query, params);
+        
         return rows.map(row => ({
             variant_id: row.variant_id,
             product_id: row.product_id,
@@ -23,12 +25,7 @@ const ProductVariant = {
             size: row.size,
             price: row.price,
             stock_quantity: row.stock_quantity,
-            weight: row.weight,
-            image_url: row.image_url,
-            product_name: row.product_name,
-            product_description: row.product_description,
-            brand_name: row.brand_name,
-            category_name: row.category_name
+            weight: row.weight
         }));
     },
 

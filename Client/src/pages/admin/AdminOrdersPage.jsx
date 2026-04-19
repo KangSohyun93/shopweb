@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getAllAdminOrders, updateOrderStatus } from '../../services/api';
+import { updateOrderStatus } from '../../services/api';
 
 const StatusUpdater = ({ order, onStatusChange }) => {
     const [currentStatus, setCurrentStatus] = useState(order.status);
@@ -75,6 +75,19 @@ const AdminOrdersPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [statusCounts, setStatusCounts] = useState({
+        all: 0,
+        pending: 0,
+        processing: 0,
+        shipped: 0,
+        delivered: 0,
+        cancelled: 0,
+        return_requested: 0,
+        returning: 0,
+        refunded: 0
+    });
 
     const tabs = [
         { key: 'all', label: 'Tất cả' },
@@ -90,17 +103,51 @@ const AdminOrdersPage = () => {
 
     useEffect(() => {
         const fetchOrders = async () => {
+            setLoading(true);
             try {
-                const response = await getAllAdminOrders();
-                setAllOrders(Array.isArray(response.data) ? response.data : []);
+                // Fetch paginated data cho bảng hiển thị
+                const token = localStorage.getItem('token');
+                const response = await fetch(`http://localhost:5000/api/orders/admin/all?page=${currentPage}&limit=50`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                const data = await response.json();
+                
+                setAllOrders(Array.isArray(data.data) ? data.data : []);
+                setTotalPages(data.totalPages || 1);
+                
+                // Fetch TẤT CẢ orders (không phân trang) để tính tổng counts cho các tab
+                const allResponse = await fetch('http://localhost:5000/api/orders/admin/all?page=1&limit=999999', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                const allData = await allResponse.json();
+                const allOrdersList = Array.isArray(allData.data) ? allData.data : [];
+                
+                // Tính counts theo từng status
+                const counts = {
+                    all: allOrdersList.length,
+                    pending: allOrdersList.filter(o => o.status === 'pending').length,
+                    processing: allOrdersList.filter(o => o.status === 'processing').length,
+                    shipped: allOrdersList.filter(o => o.status === 'shipped').length,
+                    delivered: allOrdersList.filter(o => o.status === 'delivered').length,
+                    cancelled: allOrdersList.filter(o => o.status === 'cancelled').length,
+                    return_requested: allOrdersList.filter(o => o.status === 'return_requested').length,
+                    returning: allOrdersList.filter(o => o.status === 'returning').length,
+                    refunded: allOrdersList.filter(o => o.status === 'refunded').length
+                };
+                setStatusCounts(counts);
             } catch (err) {
+                console.error('Error fetching orders:', err);
                 setError('Không thể tải danh sách đơn hàng.');
             } finally {
                 setLoading(false);
             }
         };
         fetchOrders();
-    }, []);
+    }, [currentPage]);
 
     useEffect(() => {
         if (activeTab === 'all') {
@@ -111,8 +158,7 @@ const AdminOrdersPage = () => {
     }, [activeTab, allOrders]);
 
     const getCount = (status) => {
-        if (status === 'all') return allOrders.length;
-        return allOrders.filter(order => order.status === status).length;
+        return statusCounts[status] || 0;
     };
 
     const handleOrderUpdate = (updatedOrder) => {
@@ -163,7 +209,7 @@ const AdminOrdersPage = () => {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{order.order_id}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.username || order.user_email}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(order.created_at).toLocaleDateString('vi-VN')}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600 text-right">{Number(order.total_amount).toLocaleString('vi-VN')} VND</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600 text-right">{Number(order.total_amount).toLocaleString('vi-VN')} $</td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <StatusUpdater order={order} onStatusChange={handleOrderUpdate} />
                                     </td>
@@ -175,6 +221,27 @@ const AdminOrdersPage = () => {
                         )}
                     </tbody>
                 </table>
+            </div>
+
+            {/* ✅ THANH PHÂN TRANG */}
+            <div className="flex justify-center items-center gap-4 mt-8 p-4 bg-gray-50 rounded-lg">
+                <button 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded font-medium hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                    ← Trang trước
+                </button>
+                <span className="font-bold text-gray-800 text-lg">
+                    Trang <span className="text-blue-600">{currentPage}</span> / <span className="text-blue-600">{totalPages}</span>
+                </span>
+                <button 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-4 py-2 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                    Trang sau →
+                </button>
             </div>
         </div>
     );

@@ -3,7 +3,8 @@ const router = express.Router();
 const orderController = require('../controllers/orderController');
 const { authenticateJWT, isAdmin } = require('../middleware/auth');
 
-router.get('/admin/all', authenticateJWT, isAdmin, orderController.getAllOrdersForAdmin);
+// Lấy tất cả đơn hàng (phân trang)
+router.get('/admin/all', authenticateJWT, isAdmin, orderController.getAllOrders);
 router.put('/:id/status', authenticateJWT, isAdmin, orderController.updateOrderStatus);
 router.post('/', authenticateJWT, orderController.createOrder);
 router.get('/', authenticateJWT, orderController.getUserOrders);

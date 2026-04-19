@@ -14,6 +14,9 @@ const brandRoutes = require('./routes/brandRoutes');
 const bannerRoutes = require('./routes/bannerRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const adminUserRoutes = require('./routes/adminUserRoutes');
+const recommendationRoutes = require('./routes/recommendationRoutes');
+const aiRuleRoutes = require('./routes/aiRuleRoutes');
+
 const cors = require('cors');
 require('dotenv').config();
 
@@ -48,8 +51,8 @@ app.use('/api/brands', brandRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/admin/users', adminUserRoutes);
-
-
+app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/ai-rules', aiRuleRoutes);
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to ShopWeb API' });
