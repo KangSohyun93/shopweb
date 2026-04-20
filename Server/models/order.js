@@ -129,7 +129,7 @@ const Order = {
     const ordersWithItems = await Promise.all(
         orders.map(async (order) => {
             const [items] = await pool.query(
-                `SELECT oi.*, p.name as product_name,p.product_id, p.primary_image_url, pv.image_url, pv.size
+                `SELECT oi.*, p.name as product_name, p.product_id, p.primary_image_url, pv.size
                  FROM order_items oi
                  JOIN product_variants pv ON oi.variant_id = pv.variant_id
                  JOIN products p ON pv.product_id = p.product_id
@@ -167,7 +167,6 @@ const Order = {
     const [itemRows] = await pool.query(
         `SELECT 
             oi.*, 
-            pv.image_url, 
             pv.size, 
             p.product_id,          -- Thêm product_id để link
             p.name as product_name, 

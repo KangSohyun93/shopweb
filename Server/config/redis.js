@@ -2,7 +2,7 @@ const redis = require('redis');
 
 // Khởi tạo client kết nối tới Redis Server đang chạy ở máy tính (localhost:6379)
 const redisClient = redis.createClient({
-    url: 'redis://127.0.0.1:6380'
+    url: 'redis://127.0.0.1:6379'
 });
 
 // Lắng nghe các sự kiện để dễ debug

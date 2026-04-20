@@ -9,6 +9,8 @@ const HomePage = () => {
   const [banners, setBanners] = useState([]);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [personalizedProducts, setPersonalizedProducts] = useState([]);
+  const [isPersonalized, setIsPersonalized] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -21,6 +23,22 @@ const HomePage = () => {
         setProducts(prodRes.data || []);
         setCategories(catRes.data || []);
         setBanners(bannerRes.data || []);
+
+        // 🎯 GỌI API GỢI Ý CÁ NHÂN HÓA
+        const sessionId = localStorage.getItem('session_id') || '';
+        const token = localStorage.getItem('token');
+        
+        const recRes = await axios.get('http://localhost:5000/api/recommendations/homepage', {
+          headers: { 
+            'x-session-id': sessionId,
+            ...(token && { Authorization: `Bearer ${token}` })
+          }
+        });
+
+        if (recRes.data.success) {
+          setPersonalizedProducts(recRes.data.data);
+          setIsPersonalized(recRes.data.is_personalized);
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -203,33 +221,90 @@ const HomePage = () => {
         </div>
       )}
 
-      {/* PRODUCTS CONTAINER */}
+      {/* CATEGORIES GRID - 2x2 LAYOUT */}
       <div className="container mx-auto px-4 py-8">
-      
-      {parentCategories.map(parent => {
-        // Lấy ID của Cha và tất cả ID của Con
-        const validCategoryIds = [
-          parent.category_id.toString(), 
-          ...categories.filter(c => c.parent_id === parent.category_id).map(c => c.category_id.toString())
-        ];
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {parentCategories.slice(0, 4).map(parent => {
+            // Lấy ID của Cha và tất cả ID của Con
+            const validCategoryIds = [
+              parent.category_id.toString(), 
+              ...categories.filter(c => c.parent_id === parent.category_id).map(c => c.category_id.toString())
+            ];
 
-        // Tìm sản phẩm thuộc nhánh này
-        const categoryProducts = products.filter(p => 
-          p.category_id && validCategoryIds.includes(p.category_id.toString())
-        );
+            // Tìm sản phẩm thuộc nhánh này
+            const categoryProducts = products.filter(p => 
+              p.category_id && validCategoryIds.includes(p.category_id.toString())
+            );
 
-        if (categoryProducts.length === 0) return null;
+            if (categoryProducts.length === 0) return null;
 
-        return (
-          <div key={parent.category_id} className="mb-24">
+            return (
+              <div key={parent.category_id} className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition duration-300">
+                {/* Category Header */}
+                <div className="bg-gray-50 border-b border-gray-200 p-6">
+                  <h2 className="text-2xl font-extrabold uppercase tracking-wider text-gray-900">{parent.name}</h2>
+                </div>
+                
+                {/* Products Grid - 4 SẢN PHẨM (2x2) */}
+                <div className="p-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    {categoryProducts.slice(0, 4).map(product => (
+                      <Link key={product.product_id} to={`/products/${product.product_id}`} className="group block">
+                        <div className="relative overflow-hidden bg-gray-100 aspect-[3/4] mb-3">
+                          <img 
+                            src={product.primary_image_url} 
+                            alt={product.name} 
+                            loading="lazy"
+                            decoding="async"
+                            className="object-cover w-full h-full transform group-hover:scale-105 transition duration-500 animate-fadeIn"
+                          />
+                        </div>
+                        <h3 className="text-xs text-gray-700 font-medium truncate">{product.name}</h3>
+                        <p className="text-gray-900 font-semibold mt-1 text-sm">
+                          {product.variants?.[0]?.price ? '$' + Number(product.variants[0].price).toLocaleString('en-US') : 'Liên hệ'}
+                        </p>
+                      </Link>
+                    ))}
+                  </div>
+
+                  {/* View All Button */}
+                  {categoryProducts.length > 4 && (
+                    <div className="flex justify-center mt-6 pt-6 border-t border-gray-200">
+                      <Link 
+                        to={`/category/${parent.category_id}`} 
+                        className="px-6 py-2 bg-gray-900 text-white text-xs font-bold uppercase tracking-wider hover:bg-gray-700 transition duration-300"
+                      >
+                        Xem tất cả {parent.name}
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* PERSONALIZED RECOMMENDATIONS SECTION */}
+      {personalizedProducts.length > 0 && (
+        <div className="container mx-auto px-4 py-12">
+          <div className="mb-24">
             <div className="flex justify-between items-end mb-8 border-b pb-4">
-              <h2 className="text-3xl font-extrabold uppercase tracking-wider text-gray-900">{parent.name}</h2>
+              <h2 className="text-3xl font-extrabold uppercase tracking-wider text-gray-900">
+                {isPersonalized ? "Dành Riêng Cho Bạn" : "Đang Thịnh Hành"}
+              </h2>
             </div>
             
-            {/* Lưới sản phẩm - 12 SẢN PHẨM (3 HÀNG) */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-              {categoryProducts.slice(0, 12).map(product => (
-                <Link key={product.product_id} to={`/products/${product.product_id}`} className="group block">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+              {personalizedProducts.map(product => (
+                <Link key={product.product_id} to={`/products/${product.product_id}`} className="group block relative">
+                  {/* NẾU LÀ HÀNG MỚI CHƯA CÓ LƯỢT MUA - Gắn Badge NEW để thu hút */}
+                  {product.total_sold === 0 && (
+                    <span className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded z-10">
+                      NEW
+                    </span>
+                  )}
+                  
                   <div className="relative overflow-hidden bg-gray-100 aspect-[3/4] mb-4">
                     <img 
                       src={product.primary_image_url} 
@@ -240,28 +315,18 @@ const HomePage = () => {
                     />
                   </div>
                   <h3 className="text-sm text-gray-700 font-medium truncate">{product.name}</h3>
-                  <p className="text-gray-900 font-semibold mt-1">
-                    {product.variants?.[0]?.price ? Number(product.variants[0].price).toLocaleString('vi-VN') + ' đ' : 'Liên hệ'}
-                  </p>
+                  <div className="flex justify-between items-center mt-1">
+                    <p className="text-red-600 font-bold">
+                      {product.price ? '$' + Number(product.price).toLocaleString('en-US') : 'Liên hệ'}
+                    </p>
+                    <p className="text-xs text-gray-400">Đã bán {product.total_sold || 0}</p>
+                  </div>
                 </Link>
               ))}
             </div>
-
-            {/* Nút Xem tất cả */}
-            {categoryProducts.length > 12 && (
-              <div className="flex justify-center mt-10">
-                <Link 
-                  to={`/category/${parent.category_id}`} 
-                  className="px-8 py-3 bg-white border border-gray-900 text-gray-900 text-sm font-bold uppercase tracking-wider hover:bg-gray-900 hover:text-white transition duration-300"
-                >
-                  Khám phá tất cả {parent.name}
-                </Link>
-              </div>
-            )}
           </div>
-        );
-      })}
-      </div>
+        </div>
+      )}
     </>
   );
 };

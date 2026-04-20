@@ -232,5 +232,20 @@ CREATE TABLE ai_rules (
     support_count INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS user_interactions (
+    interaction_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,                      -- Dành cho khách đã đăng nhập
+    session_id VARCHAR(255) NULL,          -- Dành cho khách vãng lai (chưa đăng nhập)
+    product_id INT NOT NULL,               -- Khách đang tương tác với SP nào
+    category_id INT NOT NULL,              -- Thuộc tính dùng để tính độ tương đồng
+    interaction_type ENUM('hover', 'view', 'add_to_cart') NOT NULL, 
+    dwell_time INT DEFAULT 0,              -- Thời gian nán lại (tính bằng giây, chỉ áp dụng cho 'view')
+    interaction_weight DECIMAL(5,2) DEFAULT 0, -- Điểm trọng số (vd: Hover=1, View=2, Add_cart=5)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (product_id) REFERENCES products(product_id),
+    -- INDEX giúp truy vấn lịch sử của user cực nhanh
+    INDEX idx_user_behavior (user_id, created_at)
+);
 CREATE INDEX idx_banners_active ON banners(is_active, display_order);
 CREATE INDEX idx_banners_dates ON banners(start_date, end_date);

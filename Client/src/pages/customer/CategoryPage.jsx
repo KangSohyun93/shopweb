@@ -163,7 +163,7 @@ const CategoryPage = () => {
                   </h3>
                   <p className="text-gray-900 font-semibold mt-1">
                     {product.variants?.[0]?.price 
-                      ? Number(product.variants[0].price).toLocaleString('vi-VN') + ' đ' 
+                      ? '$' + Number(product.variants[0].price).toLocaleString('en-US') 
                       : 'Liên hệ'
                     }
                   </p>

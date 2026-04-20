@@ -16,6 +16,7 @@ const chatRoutes = require('./routes/chatRoutes');
 const adminUserRoutes = require('./routes/adminUserRoutes');
 const recommendationRoutes = require('./routes/recommendationRoutes');
 const aiRuleRoutes = require('./routes/aiRuleRoutes');
+const trackingRoutes = require('./routes/trackingRoutes');
 
 const cors = require('cors');
 require('dotenv').config();
@@ -53,6 +54,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/ai-rules', aiRuleRoutes);
+app.use('/api/tracking', trackingRoutes);
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to ShopWeb API' });

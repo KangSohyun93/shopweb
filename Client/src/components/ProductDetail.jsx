@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 // Đảm bảo bạn đã thêm hàm getRecommendations vào file api.js nhé
 import { getProductById, getVariants, getReviews, addToCart, getRecommendations } from '../services/api';
+import axios from 'axios';
 import VariantSelector from './VariantSelector';
 
 const StarRating = ({ rating, reviewCount }) => (
@@ -55,6 +56,9 @@ const ProductDetail = () => {
     const [selectedVariant, setSelectedVariant] = useState(null);
     const [displayImage, setDisplayImage] = useState('');
     const [quantity, setQuantity] = useState(1);
+    
+    // State cho Tracking
+    const [startTime, setStartTime] = useState(Date.now());
 
     useEffect(() => {
         const fetchData = async () => {
@@ -99,6 +103,42 @@ const ProductDetail = () => {
         window.scrollTo(0, 0); 
     }, [id]);
 
+    // 📊 TRACKING: Ghi nhận thời gian dừng lại khi rời khỏi trang
+    useEffect(() => {
+        // Reset startTime khi component mount
+        setStartTime(Date.now());
+        
+        // Hàm gửi tracking khi component unmount (người dùng rời khỏi trang)
+        return () => {
+            const timeSpentSeconds = Math.floor((Date.now() - startTime) / 1000);
+            
+            // Lấy session_id từ localStorage (nếu chưa login)
+            let sessionId = localStorage.getItem('session_id');
+            if (!sessionId) {
+                sessionId = 'sess_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('session_id', sessionId);
+            }
+
+            // Gửi tracking API
+            axios.post('http://localhost:5000/api/tracking', {
+                product_id: id,
+                category_id: product?.category_id,
+                interaction_type: 'view',
+                dwell_time: timeSpentSeconds,
+                session_id: sessionId
+            }, {
+                // Kèm theo token nếu User đã đăng nhập
+                headers: { 
+                    'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+                    'Content-Type': 'application/json'
+                }
+            }).catch(err => {
+                // Silent fail để không làm gián đoạn UX
+                console.log('Tracking silent fail:', err.message);
+            });
+        };
+    }, [id, product?.category_id, startTime]);
+
     const handleVariantSelect = (variant) => {
         setSelectedVariant(variant);
     };
@@ -108,6 +148,29 @@ const ProductDetail = () => {
         if (localStorage.getItem('token')) {
             try {
                 await addToCart(selectedVariant.variant_id, quantity);
+                
+                // 📊 TRACKING: Ghi nhận khi thêm vào giỏ hàng
+                let sessionId = localStorage.getItem('session_id');
+                if (!sessionId) {
+                    sessionId = 'sess_' + Math.random().toString(36).substr(2, 9);
+                    localStorage.setItem('session_id', sessionId);
+                }
+                
+                axios.post('http://localhost:5000/api/tracking', {
+                    product_id: id,
+                    category_id: product?.category_id,
+                    interaction_type: 'add_to_cart',
+                    dwell_time: null,
+                    session_id: sessionId
+                }, {
+                    headers: { 
+                        'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+                        'Content-Type': 'application/json'
+                    }
+                }).catch(err => {
+                    console.log('Tracking silent fail:', err.message);
+                });
+                
                 alert('Đã thêm vào giỏ hàng!');
             } catch (err) {
                 alert('Không thể thêm vào giỏ hàng.');
@@ -228,7 +291,7 @@ const ProductDetail = () => {
                                             {rec.name}
                                         </h4>
                                         <p className="mt-3 text-lg font-bold text-red-600">
-                                            {rec.price ? `${Number(rec.price).toLocaleString('vi-VN')} đ` : 'Liên hệ'}
+                                            {rec.price ? `$${Number(rec.price).toLocaleString('en-US')}` : 'Liên hệ'}
                                         </p>
                                     </div>
                                 </Link>
