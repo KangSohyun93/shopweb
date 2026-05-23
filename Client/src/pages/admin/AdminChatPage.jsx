@@ -32,7 +32,15 @@ const AdminChatPage = () => {
     const handleNewMessage = (data) => {
       // Update messages if viewing this conversation
       if (selectedConversation && data.conversationId === selectedConversation.conversation_id) {
-        setMessages((prev) => [...prev, data]);
+        // Chỉ add nếu message ID chưa tồn tại (tránh duplicate)
+        setMessages((prev) => {
+          const messageExists = prev.some(m => m.message_id === data.message_id);
+          if (messageExists) {
+            console.log('⚠️ Message already exists, skipping duplicate');
+            return prev;
+          }
+          return [...prev, data];
+        });
         socket.emit('chat:mark-read', data.conversationId);
       }
       
@@ -41,8 +49,16 @@ const AdminChatPage = () => {
     };
 
     const handleMessageSent = (message) => {
-      if (selectedConversation) {
-        setMessages((prev) => [...prev, message]);
+      // Chỉ add nếu message ID chưa tồn tại
+      if (selectedConversation && message.conversation_id === selectedConversation.conversation_id) {
+        setMessages((prev) => {
+          const messageExists = prev.some(m => m.message_id === message.message_id);
+          if (messageExists) {
+            console.log('⚠️ Message already exists, skipping duplicate');
+            return prev;
+          }
+          return [...prev, message];
+        });
       }
     };
 
@@ -134,21 +150,29 @@ const AdminChatPage = () => {
       const token = localStorage.getItem('token');
       const payload = JSON.parse(atob(token.split('.')[1]));
       
+      // Send with callback to wait for response
       socket.emit('chat:send-message', {
         conversationId: selectedConversation.conversation_id,
         message: newMessage.trim(),
         senderType: 'admin',
         senderId: payload.user_id
+      }, (response) => {
+        // Callback from server
+        if (response.success) {
+          console.log('✅ Message sent successfully:', response.data);
+          setNewMessage('');
+          
+          // Stop typing indicator
+          socket.emit('chat:typing', { conversationId: selectedConversation.conversation_id, isTyping: false });
+        } else {
+          console.error('❌ Error sending message:', response.error);
+          alert(`Lỗi gửi tin nhắn: ${response.error}`);
+        }
+        setSending(false);
       });
-      
-      setNewMessage('');
-      
-      // Stop typing indicator
-      socket.emit('chat:typing', { conversationId: selectedConversation.conversation_id, isTyping: false });
     } catch (error) {
       console.error('Error sending message:', error);
       alert('Không thể gửi tin nhắn. Vui lòng thử lại.');
-    } finally {
       setSending(false);
     }
   };

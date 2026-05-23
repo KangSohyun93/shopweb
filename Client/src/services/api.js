@@ -1,6 +1,17 @@
 import axios from 'axios';
+import authService from './authService';
+import productService from './productService';
+import cartService from './cartService';
+import orderService from './orderService';
+import reviewService from './reviewService';
+import promotionService from './promotionService';
+import addressService from './addressService';
+import bannerService from './bannerService';
+import chatService from './chatService';
+import profileService from './profileService';
+import recommendationService from './recommendationService';
 
-const API_URL = 'http://localhost:5000/api'; 
+const API_URL = 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -14,135 +25,91 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-export const login = (email, password) =>
-  api.post('/users/login', { email, password });
-
-export const signup = (userData) =>
-  api.post('/users/signup', userData);
-
-export const verifyOTP = (email, otp) =>
-  api.post('/users/verify-otp', { email, otp });
-
-export const resendOTP = (email) =>
-  api.post('/users/resend-otp', { email });
-
-export const forgotPassword = (email) =>
-  api.post('/users/forgot-password', { email });
-
-export const resetPassword = (email, otp, newPassword) =>
-  api.post('/users/reset-password', { email, otp, newPassword });
-
-export const getAllProducts = () =>
-  api.get('/products');
-
-export const searchProducts = async (query) => {
-  try {
-    const response = await api.get(`/products/search?q=${encodeURIComponent(query)}`);
-    console.log('API call success - URL:', api.getUri(), 'Response:', response.data);
-    return response;
-  } catch (error) {
-    console.error('API call error - URL:', api.getUri(), 'Error:', error.response?.data || error.message);
-    throw error;
-  }
+/**
+ * Service exports for organized API calls
+ * Tách từng chức năng vào file riêng - Single Responsibility Principle
+ */
+export {
+  authService,
+  productService,
+  cartService,
+  orderService,
+  reviewService,
+  promotionService,
+  addressService,
+  bannerService,
+  chatService,
+  profileService,
+  recommendationService,
 };
 
-export const getVariants = (product_id) =>
-  api.get(`/product-variants${product_id ? `?product_id=${product_id}` : ''}`);
+/**
+ * Backward compatibility - expose individual functions
+ * (cho code cũ vẫn hoạt động)
+ */
+export const login = authService.login;
+export const signup = authService.signup;
+export const verifyOTP = authService.verifyOTP;
+export const resendOTP = authService.resendOTP;
+export const forgotPassword = authService.forgotPassword;
+export const resetPassword = authService.resetPassword;
 
-export const getCart = () => api.get('/cart');
+export const getAllProducts = productService.getAllProducts;
+export const searchProducts = productService.searchProducts;
+export const getProductById = productService.getProductById;
+export const getVariants = productService.getVariants;
+export const getReviews = reviewService.getReviews;
+export const createReview = reviewService.createReview;
+export const updateReview = reviewService.updateReview;
+export const getUserReview = reviewService.getUserReview;
 
-export const addToCart = (variant_id, quantity) =>
-  api.post('/cart', { variant_id, quantity });
+export const getCart = cartService.getCart;
+export const addToCart = cartService.addToCart;
+export const updateCartItem = cartService.updateCartItem;
+export const updateCartItemVariant = cartService.updateCartItemVariant;
+export const deleteCartItem = cartService.deleteCartItem;
 
-export const updateCartItem = (cart_item_id, quantity) =>
-  api.put(`/cart/${cart_item_id}`, { quantity });
+export const uploadPrimaryImage = productService.uploadPrimaryImage;
+export const uploadAdditionalImage = productService.uploadAdditionalImage;
+export const uploadVariantImage = productService.uploadVariantImage;
+export const deletePrimaryImage = productService.deletePrimaryImage;
+export const deleteAdditionalImage = productService.deleteAdditionalImage;
+export const deleteVariantImage = productService.deleteVariantImage;
 
-export const updateCartItemVariant = (cart_item_id, variant_id) =>
-  api.put(`/cart/${cart_item_id}/variant`, { variant_id });
+export const applyPromotion = promotionService.applyPromotion;
+export const createAddress = addressService.createAddress;
+export const getAddresses = addressService.getAddresses;
+export const deleteAddress = addressService.deleteAddress;
 
-export const deleteCartItem = (cart_item_id) =>
-  api.delete(`/cart/${cart_item_id}`);
+export const createOrder = orderService.createOrder;
+export const getOrders = orderService.getOrders;
+export const cancelOrder = orderService.cancelOrder;
+export const getAllAdminOrders = orderService.getAllAdminOrders;
+export const getOrderDetails = orderService.getOrderDetails;
+export const updateOrderStatus = orderService.updateOrderStatus;
+export const checkCanReturn = orderService.checkCanReturn;
+export const requestReturn = orderService.requestReturn;
 
-export const getProductById = (product_id) =>
-  api.get(`/products/${product_id}`);
+export const getActiveBanners = bannerService.getActiveBanners;
+export const getAllBanners = bannerService.getAllBanners;
+export const getBannerById = bannerService.getBannerById;
+export const createBanner = bannerService.createBanner;
+export const updateBanner = bannerService.updateBanner;
+export const updateBannerStatus = bannerService.updateBannerStatus;
+export const deleteBanner = bannerService.deleteBanner;
+export const uploadBannerImage = bannerService.uploadBannerImage;
 
-export const getReviews = (product_id) =>
-  api.get(`/reviews${product_id ? `?product_id=${product_id}` : ''}`);
+export const getUserConversation = chatService.getUserConversation;
+export const getChatMessages = chatService.getChatMessages;
+export const sendChatMessage = chatService.sendChatMessage;
+export const getAllConversations = chatService.getAllConversations;
+export const getConversationDetails = chatService.getConversationDetails;
+export const closeConversation = chatService.closeConversation;
 
-export const createReview = (reviewData) =>
-  api.post('/reviews', reviewData);
+export const getRecommendations = recommendationService.getRecommendations;
 
-export const updateReview = (reviewId, reviewData) =>
-  api.put(`/reviews/${reviewId}`, reviewData);
+export const getMyProfile = profileService.getMyProfile;
+export const updateProfile = profileService.updateProfile;
+export const changePassword = profileService.changePassword;
 
-export const getUserReview = (product_id, order_id) =>
-  api.get(`/reviews/user-review?product_id=${product_id}&order_id=${order_id}`);
-
-export const applyPromotion = (code, total_amount) =>
-  api.post('/promotions/apply', { code, total_amount });
-
-export const createAddress = (addressData) =>
-  api.post('/addresses', addressData);
-
-export const createOrder = (orderData) =>
-  api.post('/orders', orderData);
-
-export const getAddresses = () =>
-  api.get('/addresses');
-
-export const getOrders = () =>
-  api.get('/orders');
-
-export const cancelOrder = (orderId) => api.put(`/orders/${orderId}/cancel`);
-
-export const getAllAdminOrders = () => api.get('/orders/admin/all'); 
-export const getOrderDetails = (id) => api.get(`/orders/${id}`);
-export const updateOrderStatus = (id, status) => api.put(`/orders/${id}/status`, { status });
-
-// Return APIs
-export const checkCanReturn = (orderId) => api.get(`/orders/${orderId}/can-return`);
-export const requestReturn = (orderId, reason) => api.post(`/orders/${orderId}/return`, { reason });
-
-// Profile APIs
-export const getMyProfile = () => api.get('/users/profile/me');
-export const updateProfile = (profileData) => api.put('/users/profile/me', profileData);
-export const changePassword = (passwordData) => api.put('/users/profile/change-password', passwordData);
-export const deleteAddress = (addressId) => api.delete(`/addresses/${addressId}`);
-
-// Banner APIs
-export const getActiveBanners = () => api.get('/banners/active');
-export const getAllBanners = () => api.get('/banners');
-export const getBannerById = (id) => api.get(`/banners/${id}`);
-export const createBanner = (bannerData) => api.post('/banners', bannerData);
-export const updateBanner = (id, bannerData) => api.put(`/banners/${id}`, bannerData);
-export const updateBannerStatus = (id, isActive) => api.patch(`/banners/${id}/status`, { is_active: isActive });
-export const deleteBanner = (id) => api.delete(`/banners/${id}`);
-export const uploadBannerImage = (file) => {
-  const formData = new FormData();
-  formData.append('image', file);
-  return api.post('/banners/upload-image', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
-};
-
-// Chat APIs
-export const getUserConversation = () => api.get('/chat/my-conversation');
-export const getChatMessages = (conversationId) => api.get(`/chat/${conversationId}/messages`);
-export const sendChatMessage = (conversationId, message) => api.post(`/chat/${conversationId}/messages`, { message });
-export const getAllConversations = () => api.get('/chat/admin/conversations');
-export const getConversationDetails = (conversationId) => api.get(`/chat/admin/conversations/${conversationId}`);
-export const closeConversation = (conversationId) => api.put(`/chat/admin/conversations/${conversationId}/close`);
-
-// Recommendation API
-export const getRecommendations = async (productId) => {
-    try {
-        const response = await axios.get(`${API_URL}/recommendations/${productId}`);
-        return response.data;
-    } catch (error) {
-        console.error('Lỗi lấy gợi ý:', error);
-        throw error;
-    }
-};
 export default api;

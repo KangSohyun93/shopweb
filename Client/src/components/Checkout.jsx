@@ -6,6 +6,7 @@ import axios from 'axios';
 const Checkout = () => {
     const navigate = useNavigate();
     const [cart, setCart] = useState(null);
+    const [selectedCartItems, setSelectedCartItems] = useState(new Set());
     const [addresses, setAddresses] = useState([]);
     const [selectedAddressId, setSelectedAddressId] = useState(''); 
     const [showNewAddressForm, setShowNewAddressForm] = useState(false); 
@@ -33,6 +34,18 @@ const Checkout = () => {
                 
                 setCart(cartResponse.data);
                 
+                // Đọc selected items từ localStorage
+                const selectedFromStorage = localStorage.getItem('selectedCartItems');
+                if (selectedFromStorage) {
+                    setSelectedCartItems(new Set(JSON.parse(selectedFromStorage)));
+                    localStorage.removeItem('selectedCartItems'); // Xóa sau khi sử dụng
+                } else {
+                    // Nếu không có selected items, chọn tất cả
+                    if (cartResponse.data?.items) {
+                        setSelectedCartItems(new Set(cartResponse.data.items.map(item => item.cart_item_id)));
+                    }
+                }
+                
                 const userAddresses = addressesResponse.data || [];
                 setAddresses(userAddresses);
 
@@ -53,16 +66,23 @@ const Checkout = () => {
         initialFetch();
     }, []);
 
+    const getSelectedItems = () => {
+        if (!cart || !cart.items) return [];
+        return cart.items.filter(item => selectedCartItems.has(item.cart_item_id));
+    };
+
     const calculateTotal = () => {
-        if (!cart || !cart.items) return 0;
-        const total = cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const selectedItems = getSelectedItems();
+        if (selectedItems.length === 0) return 0;
+        const total = selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
         return appliedPromotion ? appliedPromotion.new_total : total;
     };
 
     const handleApplyPromotion = async () => {
         if (!promotionCode) return setError('Vui lòng nhập mã khuyến mãi');
         try {
-            const initialTotal = cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            const selectedItems = getSelectedItems();
+            const initialTotal = selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
             const response = await axios.post(
                 'http://localhost:5000/api/promotions/apply', 
                 { code: promotionCode, total_amount: initialTotal },
@@ -115,15 +135,22 @@ const Checkout = () => {
             return;
         }
         
+        const selectedItems = getSelectedItems();
+        if (selectedItems.length === 0) {
+            setError('Vui lòng chọn ít nhất một sản phẩm để thanh toán.');
+            setIsSubmitting(false);
+            return;
+        }
+        
         try {
-            // Tính tổng giá gốc (chưa giảm) để gửi cho backend
-            const subtotal = cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            // Tính tổng giá gốc (chưa giảm) từ selected items
+            const subtotal = selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
             
             const orderData = {
                 address_id: addressIdToUse,
                 total_amount: subtotal, // Gửi giá gốc, backend sẽ tự apply promotion
                 promotion_code: appliedPromotion ? promotionCode : null,
-                items: cart.items.map((item) => ({
+                items: selectedItems.map((item) => ({
                     variant_id: item.variant_id,
                     quantity: item.quantity,
                     price: item.price,
@@ -190,7 +217,7 @@ const Checkout = () => {
                         <h3 className="text-lg font-semibold mb-4">Tóm tắt đơn hàng</h3>
                         {cart && cart.items ? (
                             <div className="space-y-3">
-                                {cart.items.map((item) => (
+                                {getSelectedItems().map((item) => (
                                     <div key={item.cart_item_id} className="flex justify-between items-center text-sm border-b pb-2">
                                         <div>
                                             <p className="font-medium">{item.product_name}</p>

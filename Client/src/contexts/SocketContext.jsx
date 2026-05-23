@@ -21,7 +21,7 @@ export const SocketProvider = ({ children }) => {
 
     // Create socket connection
     const newSocket = io('http://localhost:5000', {
-      transports: ['websocket', 'polling'],
+      transports: ['polling'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 5
@@ -52,7 +52,12 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
+      console.error('🔴 Socket connection error:', error);
+      console.error('🔴 Error details:', {
+        message: error?.message,
+        code: error?.code,
+        description: error?.description
+      });
       setConnected(false);
     });
 

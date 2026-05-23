@@ -41,9 +41,16 @@ const ChatWidget = () => {
     const handleNewMessage = (data) => {
       if (data.conversationId === conversationId) {
         // Chỉ thêm tin nhắn từ admin, không thêm tin nhắn của chính mình
-        // (tin nhắn của user đã được thêm qua handleMessageSent)
         if (data.sender_type === 'admin') {
-          setMessages((prev) => [...prev, data]);
+          // Check if already exists to prevent duplicates
+          setMessages((prev) => {
+            const messageExists = prev.some(m => m.message_id === data.message_id);
+            if (messageExists) {
+              console.log('⚠️ Message already exists, skipping duplicate');
+              return prev;
+            }
+            return [...prev, data];
+          });
           
           // Mark as read
           socket.emit('chat:mark-read', conversationId);
@@ -51,9 +58,17 @@ const ChatWidget = () => {
       }
     };
 
-    // Listen for message sent confirmation
+    // Listen for message sent confirmation (only add if NOT already in messages)
     const handleMessageSent = (message) => {
-      setMessages((prev) => [...prev, message]);
+      // Chỉ thêm nếu message ID chưa tồn tại (tránh duplicate)
+      setMessages((prev) => {
+        const messageExists = prev.some(m => m.message_id === message.message_id);
+        if (messageExists) {
+          console.log('⚠️ Message already exists, skipping duplicate');
+          return prev;
+        }
+        return [...prev, message];
+      });
     };
 
     // Listen for typing indicator
@@ -137,29 +152,61 @@ const ChatWidget = () => {
       const token = localStorage.getItem('token');
       const payload = JSON.parse(atob(token.split('.')[1]));
       
+      const messageText = newMessage.trim();
+      
+      // 🎯 Optimistic UI: Add message immediately
+      const tempMessage = {
+        message_id: `temp_${Date.now()}`,
+        message: messageText,
+        sender_type: 'user',
+        created_at: new Date().toISOString(),
+        is_read: 0,
+        pending: true // Mark as pending
+      };
+      
+      setMessages(prev => [...prev, tempMessage]);
+      setNewMessage(''); // Clear input immediately
+      
       console.log('✅ Emitting chat:send-message with:', {
         conversationId,
-        message: newMessage.trim(),
+        message: messageText,
         senderType: 'user',
         senderId: payload.user_id
       });
       
-      // Send via socket
+      // Send via socket with callback
       socket.emit('chat:send-message', {
         conversationId,
-        message: newMessage.trim(),
+        message: messageText,
         senderType: 'user',
         senderId: payload.user_id
+      }, (response) => {
+        // Callback từ server
+        if (response.success) {
+          console.log('✅ Message sent successfully:', response.data);
+          
+          // Replace temp message with real message from server
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.message_id === tempMessage.message_id
+                ? { ...response.data, pending: false }
+                : msg
+            )
+          );
+          
+          // Stop typing indicator
+          socket.emit('chat:typing', { conversationId, isTyping: false });
+        } else {
+          console.error('❌ Error sending message:', response.error);
+          // Remove temp message on error
+          setMessages(prev => prev.filter(msg => msg.message_id !== tempMessage.message_id));
+          alert(`Lỗi gửi tin nhắn: ${response.error}`);
+        }
+        setSending(false);
       });
-      
-      setNewMessage('');
-      
-      // Stop typing indicator
-      socket.emit('chat:typing', { conversationId, isTyping: false });
     } catch (error) {
       console.error('Error sending message:', error);
       alert('Không thể gửi tin nhắn. Vui lòng thử lại.');
-    } finally {
       setSending(false);
     }
   };
@@ -294,13 +341,18 @@ const ChatWidget = () => {
                         </p>
                       )}
                       <p className="text-sm whitespace-pre-wrap">{message.message}</p>
-                      <p
-                        className={`text-xs mt-1 ${
-                          message.sender_type === 'user' ? 'text-blue-100' : 'text-gray-500'
-                        }`}
-                      >
-                        {formatTime(message.created_at)}
-                      </p>
+                      <div className="flex justify-between items-center gap-2 mt-1">
+                        <p
+                          className={`text-xs ${
+                            message.sender_type === 'user' ? 'text-blue-100' : 'text-gray-500'
+                          }`}
+                        >
+                          {formatTime(message.created_at)}
+                        </p>
+                        {message.pending && (
+                          <span className="text-xs text-blue-100 animate-pulse">Đang gửi...</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

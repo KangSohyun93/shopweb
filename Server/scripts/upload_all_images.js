@@ -1,124 +1,200 @@
+/**
+ * @file upload_all_images.js (V2 - Với Resume & Error Tracking)
+ * @description Upload ảnh sản phẩm lên Cloudinary với:
+ * - Lưu progress để resume lần sau
+ * - Retry tự động khi gặp lỗi mạng
+ * - Log chi tiết lỗi
+ * - Kiểm tra kết nối trước
+ */
+
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const fs = require('fs');
-const cloudinary = require('cloudinary').v2;
-const db = require('../config/db');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET
-});
+const productImageService = require('../services/productImageService');
 
-const IMG_DIR = path.join(__dirname, '../../datasets/img');
-const MAX_IMAGES_PER_PRODUCT = 5;
+const PROGRESS_FILE = path.join(__dirname, 'upload_progress.json');
+const ERROR_LOG_FILE = path.join(__dirname, 'upload_errors.log');
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000; // 2 giây
 
-// Tăng delay lên 800ms để Cloudinary không bị ngợp
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-async function uploadToCloudinary(filePath, safeFolderName) {
-    try {
-        const result = await cloudinary.uploader.upload(filePath, {
-            folder: `shopweb_products/${safeFolderName}`,
-            use_filename: true,
-            unique_filename: false,
-            overwrite: true
-        });
-        return result.secure_url;
-    } catch (error) {
-        // Cải thiện in lỗi rõ ràng hơn thay vì undefined
-        console.error(`❌ Lỗi upload file:`, error.message || error);
-        return null;
-    }
+/**
+ * Lưu progress hiện tại
+ */
+function saveProgress(progress) {
+  fs.writeFileSync(PROGRESS_FILE, JSON.stringify(progress, null, 2));
 }
 
+/**
+ * Tải progress từ lần chạy trước
+ */
+function loadProgress() {
+  if (fs.existsSync(PROGRESS_FILE)) {
+    try {
+      return JSON.parse(fs.readFileSync(PROGRESS_FILE, 'utf8'));
+    } catch (err) {
+      console.log('⚠️ Không thể tải progress file, bắt đầu từ đầu');
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Kiểm tra xem sản phẩm có phải là lỗi từ lần trước k
+ */
+function shouldSkipProduct(productIndex, resumeProgress) {
+  if (!resumeProgress || !resumeProgress.failedProducts) return false;
+  
+  // Nếu là lỗi và chạy lần thứ 2+, skip nó
+  if (resumeProgress.failedProducts.includes(productIndex)) {
+    console.log(`⏭️ Bỏ qua sản phẩm #${productIndex + 1} (lỗi lần trước)`);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Ghi log lỗi chi tiết
+ */
+function logError(productIndex, productName, errorMsg, errorDetails) {
+  const timestamp = new Date().toISOString();
+  const logEntry = `[${timestamp}] Sản phẩm #${productIndex}: ${productName}
+Lỗi: ${errorMsg}
+Chi tiết: ${JSON.stringify(errorDetails, null, 2)}
+---\n`;
+  
+  fs.appendFileSync(ERROR_LOG_FILE, logEntry);
+}
+
+/**
+ * Kiểm tra kết nối DNS
+ */
+async function checkConnectivity() {
+  return new Promise((resolve) => {
+    const dns = require('dns');
+    dns.lookup('api.cloudinary.com', (err) => {
+      resolve(!err);
+    });
+  });
+}
+
+/**
+ * Sleep function
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Retry logic với exponential backoff
+ */
+async function retryOperation(operation, maxRetries = MAX_RETRIES) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (attempt === maxRetries) throw error;
+      
+      const delay = RETRY_DELAY * Math.pow(2, attempt - 1);
+      console.log(`⏳ Lỗi mạng, retry lần ${attempt}/${maxRetries} sau ${delay}ms...`);
+      await sleep(delay);
+    }
+  }
+}
+
+/**
+ * Entry point chính
+ */
 async function start() {
-    console.log('🚀 BẮT ĐẦU CHẠY LẠI QUÁ TRÌNH TẢI ẢNH (RESUME MODE)...');
-    
-    try {
-        const folders = fs.readdirSync(IMG_DIR, { withFileTypes: true })
-                          .filter(dirent => dirent.isDirectory())
-                          .map(dirent => dirent.name);
+  console.log('🚀 Bắt đầu upload ảnh sản phẩm...\n');
+  
+  // Xóa progress file cũ (vì credentials sai nên upload cũ có thể invalid)
+  if (fs.existsSync(PROGRESS_FILE)) {
+    console.log('🔄 Xóa progress file cũ (credentials vừa được fix)...');
+    fs.unlinkSync(PROGRESS_FILE);
+  }
+  
+  // Kiểm tra Cloudinary credentials
+  console.log('🔑 Kiểm tra Cloudinary credentials...');
+  const cloudinaryService = require('../services/cloudinaryService');
+  const hasValidCreds = await cloudinaryService.testCloudinaryConnection();
+  if (!hasValidCreds) {
+    console.error('\n❌ CLOUDINARY CREDENTIALS LỖI!');
+    console.error('   Kiểm tra .env file:');
+    console.error('   - CLOUDINARY_CLOUD_NAME');
+    console.error('   - CLOUDINARY_API_KEY');
+    console.error('   - CLOUDINARY_API_SECRET');
+    process.exit(1);
+  }
+  console.log('✅ Cloudinary credentials OK\n');
 
-        console.log(`📁 Tìm thấy ${folders.length} thư mục sản phẩm.`);
-        
-        let successCount = 0;
-        let skipCount = 0;
+  // Kiểm tra kết nối
+  console.log('🔌 Kiểm tra kết nối Cloudinary API...');
+  const isConnected = await checkConnectivity();
+  if (!isConnected) {
+    console.error('❌ KHÔNG THỂ KẾT NỐI TỚI CLOUDINARY!');
+    console.error('   Kiểm tra:');
+    console.error('   - Kết nối Internet');
+    console.error('   - Cloudinary URL: https://api.cloudinary.com');
+    console.error('   - Tường lửa/Proxy settings');
+    process.exit(1);
+  }
+  console.log('✅ Kết nối OK\n');
 
-        for (let i = 0; i < folders.length; i++) {
-            const folderName = folders[i];
-            const folderPath = path.join(IMG_DIR, folderName);
-            
-            // Tìm tên gốc trong Database (Đổi _ thành dấu cách)
-            const searchName = folderName.replace(/_/g, ' ');
+  // Xóa file error log cũ
+  if (fs.existsSync(ERROR_LOG_FILE)) {
+    fs.unlinkSync(ERROR_LOG_FILE);
+  }
 
-            // Làm sạch tên thư mục để Cloudinary không báo lỗi public_id invalid
-            // Chỉ giữ lại chữ cái, số, dấu gạch ngang và gạch dưới. Biến & thành And, bỏ các ký tự khác.
-            let safeFolderName = folderName.replace(/&/g, 'And').replace(/[^a-zA-Z0-9_-]/g, '');
+  // Tải progress từ lần trước
+  let resumeProgress = loadProgress();
+  if (resumeProgress) {
+    console.log(`📍 Tiếp tục từ sản phẩm #${resumeProgress.lastProductIndex + 1}`);
+    console.log(`   Đã upload: ${resumeProgress.uploaded}/${resumeProgress.total} ảnh\n`);
+  }
 
-            const [productRows] = await db.query('SELECT product_id FROM products WHERE name = ? LIMIT 1', [searchName]);
-            
-            if (productRows.length === 0) {
-                skipCount++;
-                continue;
-            }
+  try {
+    // Gọi service chính với resume
+    await retryOperation(async () => {
+      await productImageService.uploadAllProductImages(resumeProgress);
+    });
 
-            const productId = productRows[0].product_id;
-
-            // KIỂM TRA ĐỂ BỎ QUA CÁC SẢN PHẨM ĐÃ UP RỒI (Tránh trùng lặp 100%)
-            const [existingImages] = await db.query('SELECT COUNT(*) as count FROM product_images WHERE product_id = ?', [productId]);
-            if (existingImages[0].count > 0) {
-                // Đã có ít nhất 1 ảnh trong DB -> Bỏ qua toàn bộ thư mục này, không in ra để Terminal đỡ rối
-                skipCount++;
-                continue;
-            }
-
-            const files = fs.readdirSync(folderPath)
-                            .filter(file => file.endsWith('.jpg') || file.endsWith('.png') || file.endsWith('.jpeg'))
-                            .sort(); 
-
-            if (files.length === 0) continue;
-
-            const selectedFiles = files.slice(0, MAX_IMAGES_PER_PRODUCT);
-            console.log(`\n⏳ Đang up MỚI [${i+1}/${folders.length}]: ${folderName} (${selectedFiles.length} ảnh)`);
-
-            for (let j = 0; j < selectedFiles.length; j++) {
-                const file = selectedFiles[j];
-                const filePath = path.join(folderPath, file);
-                const isPrimary = (j === 0);
-
-                const imageUrl = await uploadToCloudinary(filePath, safeFolderName);
-                
-                if (imageUrl) {
-                    await db.query(`
-                        INSERT INTO product_images (product_id, image_url, is_primary) 
-                        VALUES (?, ?, ?)
-                    `, [productId, imageUrl, isPrimary ? 1 : 0]);
-
-                    if (isPrimary) {
-                        await db.query(`
-                            UPDATE products SET primary_image_url = ? WHERE product_id = ?
-                        `, [imageUrl, productId]);
-                    }
-                } else {
-                    // Nếu lỗi do Cloudinary chặn, in ra và dừng cả thư mục để an toàn
-                    console.log(`⚠️ Gặp lỗi tại ảnh ${file}. Sẽ chuyển sang sản phẩm tiếp theo...`);
-                    break; 
-                }
-                
-                await sleep(800); // Nghỉ 0.8 giây để an toàn qua mặt Rate Limit
-            }
-            
-            successCount++;
-        }
-
-        console.log(`\n🎉 HOÀN THÀNH! Đã up mới thành công cho ${successCount} sản phẩm. Đã bỏ qua ${skipCount} sản phẩm.`);
-        process.exit(0);
-
-    } catch (error) {
-        console.error('❌ Lỗi hệ thống ngầm định:', error);
-        process.exit(1);
+    // Xóa progress file khi thành công
+    if (fs.existsSync(PROGRESS_FILE)) {
+      fs.unlinkSync(PROGRESS_FILE);
     }
+
+    console.log('\n✅ Upload hoàn tát!');
+    
+    // Kiểm tra file error log
+    if (fs.existsSync(ERROR_LOG_FILE)) {
+      const errorCount = fs.readFileSync(ERROR_LOG_FILE, 'utf8').split('---').length - 1;
+      console.log(`⚠️ Có ${errorCount} sản phẩm bị lỗi - xem chi tiết: ${ERROR_LOG_FILE}`);
+    }
+
+    process.exit(0);
+  } catch (error) {
+    console.error('\n❌ Lỗi không mong muốn:', error.message);
+    
+    // Lưu progress để resume lần sau
+    const currentProgress = loadProgress();
+    if (currentProgress) {
+      console.log(`💾 Progress đã lưu vào: ${PROGRESS_FILE}`);
+      console.log(`   Lần sau chạy lệnh này để tiếp tục từ sản phẩm #${currentProgress.lastProductIndex + 1}`);
+      
+      if (currentProgress.failedProducts && currentProgress.failedProducts.length > 0) {
+        console.log(`   Sản phẩm lỗi sẽ bị skip: ${currentProgress.failedProducts.map(i => `#${i + 1}`).join(', ')}`);
+      }
+    }
+
+    // Log chi tiết lỗi
+    logError('SCRIPT', 'upload_all_images.js', error.message, error.stack);
+    console.log(`📋 Chi tiết lỗi: ${ERROR_LOG_FILE}`);
+
+    process.exit(1);
+  }
 }
 
+// Chạy script
 start();

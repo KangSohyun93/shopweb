@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
@@ -9,11 +9,34 @@ const HomePage = () => {
   const [banners, setBanners] = useState([]);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  
+  // 📖 INFINITE SCROLL: State cho phân trang
   const [personalizedProducts, setPersonalizedProducts] = useState([]);
   const [isPersonalized, setIsPersonalized] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  
+  const hoverTimersRef = useRef({});
+  const observerRef = useRef();
 
+  // 📌 INTERSECTION OBSERVER: Khi scroll tới sản phẩm cuối, tải thêm
+  const lastProductElementRef = useCallback(node => {
+    if (isLoadingMore) return;
+    if (observerRef.current) observerRef.current.disconnect();
+    
+    observerRef.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+        setPage(prevPage => prevPage + 1);
+      }
+    }, { threshold: 0.1 });
+    
+    if (node) observerRef.current.observe(node);
+  }, [isLoadingMore, hasMore]);
+
+  // 1️⃣ FETCH INITIAL DATA (Products, Categories, Banners)
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchInitialData = async () => {
       try {
         const [prodRes, catRes, bannerRes] = await Promise.all([
           axios.get('http://localhost:5000/api/products'),
@@ -23,30 +46,55 @@ const HomePage = () => {
         setProducts(prodRes.data || []);
         setCategories(catRes.data || []);
         setBanners(bannerRes.data || []);
-
-        // 🎯 GỌI API GỢI Ý CÁ NHÂN HÓA
-        const sessionId = localStorage.getItem('session_id') || '';
-        const token = localStorage.getItem('token');
-        
-        const recRes = await axios.get('http://localhost:5000/api/recommendations/homepage', {
-          headers: { 
-            'x-session-id': sessionId,
-            ...(token && { Authorization: `Bearer ${token}` })
-          }
-        });
-
-        if (recRes.data.success) {
-          setPersonalizedProducts(recRes.data.data);
-          setIsPersonalized(recRes.data.is_personalized);
-        }
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching initial data:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+    fetchInitialData();
   }, []);
+
+  // 2️⃣ FETCH RECOMMENDATIONS (Infinite Scroll)
+  useEffect(() => {
+    const fetchRecommendations = async () => {
+      if (!hasMore) return;
+      
+      setIsLoadingMore(true);
+      try {
+        const sessionId = localStorage.getItem('session_id') || '';
+        const token = localStorage.getItem('token');
+        
+        const res = await axios.get(
+          `http://localhost:5000/api/recommendations/homepage?page=${page}&limit=10`,
+          {
+            headers: { 
+              'x-session-id': sessionId,
+              ...(token && { Authorization: `Bearer ${token}` })
+            }
+          }
+        );
+
+        if (res.data.success) {
+          setPersonalizedProducts(prev => {
+            // ✅ Append mode: Nối danh sách, loại trùng lặp
+            const newItems = res.data.data.filter(
+              newItem => !prev.some(existingItem => existingItem.product_id === newItem.product_id)
+            );
+            return [...prev, ...newItems];
+          });
+          setIsPersonalized(res.data.is_personalized);
+          setHasMore(res.data.hasMore);
+        }
+      } catch (error) {
+        console.error('Error fetching recommendations:', error);
+      } finally {
+        setIsLoadingMore(false);
+      }
+    };
+
+    fetchRecommendations();
+  }, [page, hasMore]);
 
   // Lọc banner hợp lệ: Phải active, nằm trong khoảng ngày
   const getActiveBanners = () => {
@@ -75,6 +123,28 @@ const HomePage = () => {
   };
 
   const activeBanners = getActiveBanners();
+
+  // 🖱️ HOVER TRACKING: Tính toán khi user rê chuột vào ảnh sản phẩm (độ trễ 1 giây)
+  const handleMouseEnter = (productId, categoryId) => {
+    // Tránh việc lướt chuột qua vô tình cũng tính, ta set độ trễ 1 giây
+    hoverTimersRef.current[productId] = setTimeout(() => {
+      const sessionId = localStorage.getItem('session_id');
+      axios.post('http://localhost:5000/api/tracking', {
+        product_id: productId,
+        category_id: categoryId,
+        interaction_type: 'hover',
+        session_id: sessionId
+      }).catch(err => console.log('Hover tracking silent fail:', err.message));
+    }, 1000);
+  };
+
+  // 🖱️ HOVER TRACKING: Hủy tracking nếu rời chuột sớm hơn 1 giây
+  const handleMouseLeave = (productId) => {
+    if (hoverTimersRef.current[productId]) {
+      clearTimeout(hoverTimersRef.current[productId]);
+      delete hoverTimersRef.current[productId];
+    }
+  };
 
   // Auto carousel - nhảy sang banner tiếp theo sau 3 giây
   useEffect(() => {
@@ -250,7 +320,11 @@ const HomePage = () => {
                   <div className="grid grid-cols-2 gap-4">
                     {categoryProducts.slice(0, 4).map(product => (
                       <Link key={product.product_id} to={`/products/${product.product_id}`} className="group block">
-                        <div className="relative overflow-hidden bg-gray-100 aspect-[3/4] mb-3">
+                        <div 
+                          className="relative overflow-hidden bg-gray-100 aspect-[3/4] mb-3"
+                          onMouseEnter={() => handleMouseEnter(product.product_id, product.category_id)}
+                          onMouseLeave={() => handleMouseLeave(product.product_id)}
+                        >
                           <img 
                             src={product.primary_image_url} 
                             alt={product.name} 
@@ -296,34 +370,62 @@ const HomePage = () => {
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-              {personalizedProducts.map(product => (
-                <Link key={product.product_id} to={`/products/${product.product_id}`} className="group block relative">
-                  {/* NẾU LÀ HÀNG MỚI CHƯA CÓ LƯỢT MUA - Gắn Badge NEW để thu hút */}
-                  {product.total_sold === 0 && (
-                    <span className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded z-10">
-                      NEW
-                    </span>
-                  )}
-                  
-                  <div className="relative overflow-hidden bg-gray-100 aspect-[3/4] mb-4">
-                    <img 
-                      src={product.primary_image_url} 
-                      alt={product.name} 
-                      loading="lazy"
-                      decoding="async"
-                      className="object-cover w-full h-full transform group-hover:scale-105 transition duration-500 animate-fadeIn"
-                    />
-                  </div>
-                  <h3 className="text-sm text-gray-700 font-medium truncate">{product.name}</h3>
-                  <div className="flex justify-between items-center mt-1">
-                    <p className="text-red-600 font-bold">
-                      {product.price ? '$' + Number(product.price).toLocaleString('en-US') : 'Liên hệ'}
-                    </p>
-                    <p className="text-xs text-gray-400">Đã bán {product.total_sold || 0}</p>
-                  </div>
-                </Link>
-              ))}
+              {personalizedProducts.map((product, index) => {
+                // 📌 Gắn ref vào sản phẩm cuối cùng để trigger infinite scroll
+                const isLastElement = personalizedProducts.length === index + 1;
+                
+                return (
+                  <Link 
+                    ref={isLastElement ? lastProductElementRef : null}
+                    key={product.product_id} 
+                    to={`/products/${product.product_id}`} 
+                    className="group block relative"
+                  >
+                    {/* NẾU LÀ HÀNG MỚI CHƯA CÓ LƯỢT MUA - Gắn Badge NEW để thu hút */}
+                    {product.total_sold === 0 && (
+                      <span className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded z-10">
+                        NEW
+                      </span>
+                    )}
+                    
+                    <div 
+                      className="relative overflow-hidden bg-gray-100 aspect-[3/4] mb-4"
+                      onMouseEnter={() => handleMouseEnter(product.product_id, product.category_id)}
+                      onMouseLeave={() => handleMouseLeave(product.product_id)}
+                    >
+                      <img 
+                        src={product.primary_image_url} 
+                        alt={product.name} 
+                        loading="lazy"
+                        decoding="async"
+                        className="object-cover w-full h-full transform group-hover:scale-105 transition duration-500 animate-fadeIn"
+                      />
+                    </div>
+                    <h3 className="text-sm text-gray-700 font-medium truncate">{product.name}</h3>
+                    <div className="flex justify-between items-center mt-1">
+                      <p className="text-red-600 font-bold">
+                        {product.price ? '$' + Number(product.price).toLocaleString('en-US') : 'Liên hệ'}
+                      </p>
+                      <p className="text-xs text-gray-400">Đã bán {product.total_sold || 0}</p>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
+            
+            {/* 📥 LOADING SPINNER - Hiển thị khi đang load thêm */}
+            {isLoadingMore && (
+              <div className="flex justify-center mt-12">
+                <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-300 border-t-red-600"></div>
+              </div>
+            )}
+            
+            {/* ✅ HẾT HÀNG - Hiển thị khi không còn sản phẩm */}
+            {!hasMore && personalizedProducts.length > 0 && (
+              <div className="text-center mt-12 text-gray-500 text-lg">
+                🎉 Đã tải hết sản phẩm phù hợp với bạn!
+              </div>
+            )}
           </div>
         </div>
       )}

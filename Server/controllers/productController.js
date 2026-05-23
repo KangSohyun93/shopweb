@@ -4,6 +4,7 @@ const cloudinary = require('../config/cloudinary');
 const pool = require('../config/db');
 
 const productController = {
+  // ===== PRODUCT CRUD =====
   getAllProducts: async (req, res) => {
     try {
       const products = await Product.getAll();
@@ -77,6 +78,24 @@ const productController = {
     }
   },
 
+  searchProducts: async (req, res) => {
+    try {
+      const { q } = req.query;
+      if (!q) {
+        return res.status(400).json({ error: 'Search query is required' });
+      }
+      const products = await Product.searchByName(q);
+      if (!products || products.length === 0) {
+        return res.status(200).json([]); 
+      }
+      res.json(products);
+    } catch (error) {
+      console.error('Error searching products:', error);
+      res.status(500).json({ error: 'Failed to search products', details: error.message });
+    }
+  },
+
+  // ===== PRODUCT IMAGE OPERATIONS =====
   uploadPrimaryImage: async (req, res) => {
     try {
       const { productId } = req.params;
@@ -177,7 +196,7 @@ const productController = {
       }
 
       const imageUrl = rows[0].primary_image_url;
-      const publicId = imageUrl.split('/').slice(-1)[0].split('.')[0]; // Lấy public_id từ URL
+      const publicId = imageUrl.split('/').slice(-1)[0].split('.')[0];
       await cloudinary.uploader.destroy(`shopweb/${publicId}`);
 
       await pool.query(
@@ -236,27 +255,7 @@ const productController = {
       console.error('Error deleting variant image:', err);
       res.status(500).json({ message: 'Lỗi server khi xóa ảnh biến thể' });
     }
-  },
-
-searchProducts: async (req, res) => {
-  try {
-    const { q } = req.query;
-    console.log('Search query received in controller:', q, 'Full URL:', req.originalUrl);
-    if (!q) {
-      return res.status(400).json({ error: 'Search query is required' });
-    }
-    console.log('Before calling searchByName with query:', q);
-    const products = await Product.searchByName(q);
-    console.log('After searchByName - Results:', products);
-    if (!products || products.length === 0) {
-      return res.status(200).json([]); 
-    }
-    res.json(products);
-  } catch (error) {
-    console.error('Error searching products:', error);
-    res.status(500).json({ error: 'Failed to search products', details: error.message });
   }
-},
 };
 
 module.exports = productController;

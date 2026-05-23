@@ -1,7 +1,13 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const cors = require('cors');
+require('dotenv').config();
+
 const pool = require('./config/db');
+const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
+
+// Routes
 const productRoutes = require('./routes/productRoutes');
 const userRoutes = require('./routes/userRoutes');
 const orderRoutes = require('./routes/orderRoutes');
@@ -18,15 +24,13 @@ const recommendationRoutes = require('./routes/recommendationRoutes');
 const aiRuleRoutes = require('./routes/aiRuleRoutes');
 const trackingRoutes = require('./routes/trackingRoutes');
 
-const cors = require('cors');
-require('dotenv').config();
-
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:3001',
-    methods: ['GET', 'POST']
+    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
   }
 });
 const port = process.env.PORT || 3000;
@@ -34,10 +38,6 @@ const port = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use((err, req, res, next) => {
-  console.error('Global error handler:', err.stack);
-  res.status(500).json({ error: 'Internal server error', details: err.message });
-});
 // Routes
 app.use('/api/products', productRoutes);
 app.use('/api/users', userRoutes);
@@ -70,10 +70,10 @@ app.get('/test-db', async (req, res) => {
     res.status(500).json({ error: 'Database connection failed' });
   }
 });
-app.use((req, res, next) => {
-  console.log('No route matched:', req.path);
-  res.status(404).json({ error: 'Route not found' });
-});
+
+// Error handlers - MUST be at the end
+app.use(notFoundHandler);    // 404 handler
+app.use(errorHandler);       // Global error handler
 
 // Socket.IO for real-time chat
 const userSockets = new Map(); // userId -> socketId
@@ -114,24 +114,50 @@ io.on('connection', (socket) => {
   });
 
   // Send message
-  socket.on('chat:send-message', async (data) => {
+  socket.on('chat:send-message', async (data, callback) => {
     console.log('📨 Received chat:send-message event:', data);
     const { conversationId, message, senderType, senderId } = data;
+    
+    // Validate input
+    if (!conversationId || !message || !message.trim() || !senderType || !senderId) {
+      console.error('❌ Missing required fields');
+      if (callback) {
+        callback({
+          success: false,
+          error: 'Missing required fields: conversationId, message, senderType, senderId'
+        });
+      }
+      return;
+    }
     
     try {
       // Save message to database
       const Chat = require('./models/chat');
       console.log('💾 Saving message to database...');
       const newMessage = await Chat.sendMessage(conversationId, senderType, senderId, message);
-      console.log('✅ Message saved with ID:', newMessage);
+      
+      if (!newMessage) {
+        throw new Error('Failed to retrieve saved message');
+      }
+      
+      console.log('✅ Message saved with ID:', newMessage.message_id);
+      
+      // Send success callback to sender
+      if (callback) {
+        callback({
+          success: true,
+          data: newMessage
+        });
+      }
       
       // Get conversation details to find recipient
       const conversation = await Chat.getConversationById(conversationId);
+      if (!conversation) {
+        console.error('❌ Conversation not found');
+        return;
+      }
       
-      // Emit to sender
-      socket.emit('chat:message-sent', newMessage);
-      
-      // Emit to recipient
+      // Emit to recipient (but NOT to sender again)
       if (senderType === 'user') {
         // Notify all admins
         io.to('admins').emit('chat:new-message', {
@@ -147,11 +173,19 @@ io.on('connection', (socket) => {
             ...newMessage,
             conversationId
           });
+        } else {
+          console.warn(`⚠️ User socket not found for user ${conversation.user_id}`);
         }
       }
     } catch (error) {
-      console.error('Error sending message:', error);
-      socket.emit('chat:error', { message: 'Failed to send message' });
+      console.error('❌ Error sending message:', error);
+      if (callback) {
+        callback({
+          success: false,
+          error: error.message || 'Failed to send message'
+        });
+      }
+      socket.emit('chat:error', { message: 'Failed to send message', error: error.message });
     }
   });
 
