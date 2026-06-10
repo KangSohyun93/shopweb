@@ -11,15 +11,19 @@ const useUserActions = () => {
     totalPages: 0
   });
 
-  const loadUsers = async (filters) => {
+  // ✅ Nhận từng tham số riêng, có page và limit rõ ràng
+  const loadUsers = async (q = '', role = '', is_locked = '', is_deleted = '', page = 1, limit = 10) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const params = new URLSearchParams({
-        ...filters,
-        page: pagination.page,
-        limit: pagination.limit
-      });
+
+      const params = new URLSearchParams();
+      if (q) params.append('q', q);
+      if (role) params.append('role', role);
+      if (is_locked !== '') params.append('is_locked', is_locked);
+      if (is_deleted !== '') params.append('is_deleted', is_deleted);
+      params.append('page', page);
+      params.append('limit', limit);
 
       const response = await axios.get(`http://localhost:5000/api/admin/users?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -37,7 +41,6 @@ const useUserActions = () => {
 
   const toggleLock = async (userId, currentLocked) => {
     if (!window.confirm(`Bạn có chắc muốn ${currentLocked ? 'mở khoá' : 'khoá'} tài khoản này?`)) return false;
-
     try {
       const token = localStorage.getItem('token');
       await axios.patch(
@@ -56,7 +59,6 @@ const useUserActions = () => {
   const changeRole = async (userId, currentRole) => {
     const newRole = currentRole === 'admin' ? 'customer' : 'admin';
     if (!window.confirm(`Chuyển vai trò sang ${newRole}?`)) return false;
-
     try {
       const token = localStorage.getItem('token');
       await axios.patch(
@@ -74,7 +76,6 @@ const useUserActions = () => {
 
   const deleteUser = async (userId) => {
     if (!window.confirm('Bạn có chắc muốn xoá người dùng này?')) return false;
-
     try {
       const token = localStorage.getItem('token');
       await axios.delete(`http://localhost:5000/api/admin/users/${userId}`, {

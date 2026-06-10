@@ -42,13 +42,13 @@ exports.getAllUsers = async (req, res) => {
         }
 
         // Count total
-        const countQuery = query.replace(/SELECT.*FROM/, 'SELECT COUNT(*) as total FROM');
+        const countQuery = `SELECT COUNT(*) as total FROM users WHERE 1=1${query.split('WHERE 1=1')[1].split('ORDER BY')[0]}`;
         const [countResult] = await pool.query(countQuery, params);
         const total = countResult[0].total;
 
         // Pagination
         const offset = (page - 1) * limit;
-        query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+        query += ' ORDER BY user_id ASC LIMIT ? OFFSET ?';
         params.push(parseInt(limit), offset);
 
         const [users] = await pool.query(query, params);
