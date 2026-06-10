@@ -19,8 +19,9 @@ const AdminUsersPage = () => {
   const { users, loading, pagination, setPagination, loadUsers, toggleLock, changeRole, deleteUser, restoreUser } = useUserActions();
 
   useEffect(() => {
-    loadUsers(filters);
-  }, [filters, pagination.page]);
+ loadUsers(filters.q, filters.role, filters.is_locked, filters.is_deleted, pagination.page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.q, filters.role, filters.is_locked, filters.is_deleted, pagination.page]);
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));

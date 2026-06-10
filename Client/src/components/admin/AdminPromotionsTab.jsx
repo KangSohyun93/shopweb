@@ -1,20 +1,11 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 
-/**
- * @component AdminPromotionsTab
- * @description Quản lý khuyến mãi/mã giảm giá
- * @category Admin
- */
-
 const AdminPromotionsTab = () => {
   const [promotions, setPromotions] = useState([]);
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [editMode, setEditMode] = useState(null);
   const [editedItems, setEditedItems] = useState({});
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [editMode, setEditMode] = useState(null);
 
   useEffect(() => {
     fetchPromotions();
@@ -22,266 +13,296 @@ const AdminPromotionsTab = () => {
 
   const fetchPromotions = async () => {
     try {
-      setLoading(true);
       const token = localStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get('http://localhost:5000/api/promotions', { headers });
+      if (!token) { setError('Bạn chưa đăng nhập hoặc phiên đã hết hạn.'); return; }
+      const res = await axios.get('http://localhost:5000/api/promotions', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setPromotions(res.data || []);
       setError(null);
     } catch (err) {
-      setError('Không thể tải danh sách khuyến mãi');
-      console.error(err);
-    } finally {
-      setLoading(false);
+      console.error('Error fetching promotions:', err);
+      setError(err.response?.data?.error || 'Không thể tải dữ liệu khuyến mãi.');
     }
   };
 
-  const handleAddPromotion = () => {
+  const handleChange = (id, field, value) => {
+    setEditedItems(prev => ({ ...prev, [id]: { ...(prev[id] || {}), [field]: value } }));
+  };
+
+  const handleAdd = () => {
     const newId = `new_${Date.now()}`;
-    const newPromotion = {
+    const newItem = {
       promotion_id: newId,
       code: '',
       description: '',
       discount_type: 'percentage',
       discount_value: 0,
-      valid_from: '',
-      valid_to: '',
-      max_uses: 0,
-      times_used: 0,
+      start_date: '',
+      end_date: '',
       min_order_value: 0,
-      is_active: true,
     };
-    setPromotions([...promotions, newPromotion]);
+    setPromotions(prev => [newItem, ...prev]);
+    setEditedItems(prev => ({ ...prev, [newId]: { ...newItem } }));
     setEditMode(newId);
   };
 
-  const handleChange = (id, field, value) => {
-    setEditedItems((prev) => ({
-      ...prev,
-      [id]: { ...(prev[id] || {}), [field]: value },
-    }));
-  };
-
-  const handleEdit = (promotion) => {
-    setEditedItems((prev) => ({
-      ...prev,
-      [promotion.promotion_id]: { ...promotion },
-    }));
-    setEditMode(promotion.promotion_id);
+  const handleEdit = (promo) => {
+    setEditedItems(prev => ({ ...prev, [promo.promotion_id]: { ...promo } }));
+    setEditMode(promo.promotion_id);
   };
 
   const handleCancelEdit = (id) => {
     if (id.toString().includes('new_')) {
-      setPromotions((prev) => prev.filter((p) => p.promotion_id !== id));
+      setPromotions(prev => prev.filter(p => p.promotion_id !== id));
     }
     setEditMode(null);
-    setEditedItems((prev) => {
-      const newItems = { ...prev };
-      delete newItems[id];
-      return newItems;
-    });
+    setEditedItems(prev => { const n = { ...prev }; delete n[id]; return n; });
   };
 
-  const handleSavePromotion = async (id) => {
+  const handleSave = async (id) => {
+    const itemData = editedItems[id];
+    if (!itemData) return;
+    const isNew = id.toString().includes('new_');
+    const token = localStorage.getItem('token');
+    const headers = { Authorization: `Bearer ${token}` };
     try {
-      const token = localStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}` };
-      const data = editedItems[id];
-
-      if (id.toString().includes('new_')) {
-        await axios.post('http://localhost:5000/api/promotions', data, { headers });
+      if (isNew) {
+        const res = await axios.post('http://localhost:5000/api/promotions', itemData, { headers });
+        const newId = res.data.id || res.data.promotion_id;
+        setPromotions(prev =>
+          prev.map(p => p.promotion_id === id ? { ...itemData, promotion_id: newId } : p)
+        );
       } else {
-        await axios.put(`http://localhost:5000/api/promotions/${id}`, data, { headers });
+        await axios.put(`http://localhost:5000/api/promotions/${id}`, itemData, { headers });
+        setPromotions(prev =>
+          prev.map(p => p.promotion_id === id ? { ...itemData } : p)
+        );
       }
-
-      await fetchPromotions();
       setEditMode(null);
-      setEditedItems({});
+      setEditedItems(prev => { const n = { ...prev }; delete n[id]; return n; });
+      setError(null);
     } catch (err) {
-      setError('Lỗi khi lưu khuyến mãi');
-      console.error(err);
+      console.error('Error saving promotion:', err);
+      setError(err.response?.data?.error || 'Không thể lưu khuyến mãi.');
     }
   };
 
-  const handleDeletePromotion = async (id) => {
-    if (!window.confirm('Bạn chắc chắn muốn xóa khuyến mãi này?')) return;
-
+  const handleDelete = async (id) => {
+    if (!window.confirm('Bạn có chắc muốn xóa khuyến mãi này không?')) return;
     try {
       const token = localStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}` };
-      await axios.delete(`http://localhost:5000/api/promotions/${id}`, { headers });
-      await fetchPromotions();
+      await axios.delete(`http://localhost:5000/api/promotions/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setPromotions(prev => prev.filter(p => p.promotion_id !== id));
+      setError(null);
     } catch (err) {
-      setError('Lỗi khi xóa khuyến mãi');
-      console.error(err);
+      console.error('Error deleting promotion:', err);
+      setError(err.response?.data?.error || 'Không thể xóa khuyến mãi.');
     }
   };
 
-  const indexOfLast = currentPage * itemsPerPage;
-  const indexOfFirst = indexOfLast - itemsPerPage;
-  const currentPromotions = promotions.slice(indexOfFirst, indexOfLast);
-  const totalPages = Math.ceil(promotions.length / itemsPerPage);
-
-  if (loading) return <div className="p-4">Loading...</div>;
+  const formatDateTime = (dateStr) => {
+    if (!dateStr) return '';
+    try { return new Date(dateStr).toISOString().slice(0, 16); } catch { return ''; }
+  };
 
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold mb-4">Quản lý Khuyến mãi</h2>
+      <h2 className="text-2xl font-bold mb-6 text-gray-900">Quản lý Khuyến mãi</h2>
 
-      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+      {error && (
+        <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-lg mb-4 flex justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700">✕</button>
+        </div>
+      )}
 
-      <button
-        onClick={handleAddPromotion}
-        className="mb-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-      >
-        + Thêm khuyến mãi
-      </button>
+      <div className="mb-4">
+        <button
+          onClick={handleAdd}
+          className="bg-green-600 text-white px-5 py-2 rounded-xl font-semibold shadow hover:bg-green-700 transition"
+        >
+          + Thêm khuyến mãi
+        </button>
+      </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse border border-gray-300">
-          <thead className="bg-gray-200">
+      <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+        <table className="min-w-full bg-white text-sm">
+          <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="border p-2">Mã</th>
-              <th className="border p-2">Loại giảm</th>
-              <th className="border p-2">Giá trị</th>
-              <th className="border p-2">Hạn sử dụng</th>
-              <th className="border p-2">Lần dùng</th>
-              <th className="border p-2">Trạng thái</th>
-              <th className="border p-2">Hành động</th>
+              <th className="py-3 px-4 text-left font-semibold text-gray-600">Mã</th>
+              <th className="py-3 px-4 text-left font-semibold text-gray-600">Mô tả</th>
+              <th className="py-3 px-4 text-left font-semibold text-gray-600">Loại / Giá trị</th>
+              <th className="py-3 px-4 text-left font-semibold text-gray-600">Đơn tối thiểu</th>
+              <th className="py-3 px-4 text-left font-semibold text-gray-600">Thời gian</th>
+              <th className="py-3 px-4 text-center font-semibold text-gray-600">Hành động</th>
             </tr>
           </thead>
-          <tbody>
-            {currentPromotions.map((promo) => {
+          <tbody className="divide-y divide-gray-100">
+            {promotions.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
+                  Không có khuyến mãi nào
+                </td>
+              </tr>
+            )}
+            {promotions.map((promo) => {
               const isEditing = editMode === promo.promotion_id;
-              const edited = editedItems[promo.promotion_id];
+              const item = isEditing ? (editedItems[promo.promotion_id] || {}) : promo;
 
               return (
-                <tr key={promo.promotion_id} className="hover:bg-gray-50">
-                  <td className="border p-2">
+                <tr key={promo.promotion_id} className="hover:bg-gray-50 align-top">
+                  {/* Mã */}
+                  <td className="py-3 px-4">
                     {isEditing ? (
                       <input
                         type="text"
-                        value={edited?.code || ''}
-                        onChange={(e) => handleChange(promo.promotion_id, 'code', e.target.value)}
-                        className="w-full px-2 py-1 border border-gray-300 rounded"
+                        value={item.code || ''}
+                        onChange={e => handleChange(promo.promotion_id, 'code', e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-300 focus:outline-none"
+                        placeholder="VD: SUMMER20"
                       />
                     ) : (
-                      promo.code
+                      <strong className="font-mono text-blue-700">{item.code}</strong>
                     )}
                   </td>
-                  <td className="border p-2">
+
+                  {/* Mô tả */}
+                  <td className="py-3 px-4">
                     {isEditing ? (
-                      <select
-                        value={edited?.discount_type || ''}
-                        onChange={(e) => handleChange(promo.promotion_id, 'discount_type', e.target.value)}
-                        className="w-full px-2 py-1 border border-gray-300 rounded"
-                      >
-                        <option value="percentage">%</option>
-                        <option value="fixed">$</option>
-                      </select>
-                    ) : (
-                      promo.discount_type === 'percentage' ? '%' : '$'
-                    )}
-                  </td>
-                  <td className="border p-2">
-                    {isEditing ? (
-                      <input
-                        type="number"
-                        value={edited?.discount_value || 0}
-                        onChange={(e) => handleChange(promo.promotion_id, 'discount_value', e.target.value)}
-                        className="w-full px-2 py-1 border border-gray-300 rounded"
+                      <textarea
+                        value={item.description || ''}
+                        onChange={e => handleChange(promo.promotion_id, 'description', e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-300 focus:outline-none text-sm"
+                        rows={2}
+                        placeholder="Mô tả khuyến mãi"
                       />
                     ) : (
-                      promo.discount_value
+                      <p className="text-sm text-gray-600">{item.description || '—'}</p>
                     )}
                   </td>
-                  <td className="border p-2">
+
+                  {/* Loại / Giá trị */}
+                  <td className="py-3 px-4">
                     {isEditing ? (
-                      <input
-                        type="date"
-                        value={edited?.valid_to || ''}
-                        onChange={(e) => handleChange(promo.promotion_id, 'valid_to', e.target.value)}
-                        className="w-full px-2 py-1 border border-gray-300 rounded"
-                      />
+                      <div className="flex gap-2">
+                        <select
+                          value={item.discount_type || 'percentage'}
+                          onChange={e => handleChange(promo.promotion_id, 'discount_type', e.target.value)}
+                          className="border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-300 focus:outline-none text-sm"
+                        >
+                          <option value="percentage">Phần trăm (%)</option>
+                          <option value="fixed">Cố định ($)</option>
+                        </select>
+                        <input
+                          type="number"
+                          value={item.discount_value || 0}
+                          min={0}
+                          onChange={e => handleChange(promo.promotion_id, 'discount_value', e.target.value)}
+                          className="w-24 border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-300 focus:outline-none text-sm"
+                        />
+                      </div>
                     ) : (
-                      promo.valid_to?.split('T')[0] || '—'
-                    )}
-                  </td>
-                  <td className="border p-2">{promo.times_used}/{promo.max_uses}</td>
-                  <td className="border p-2">
-                    {isEditing ? (
-                      <select
-                        value={edited?.is_active ? 'yes' : 'no'}
-                        onChange={(e) => handleChange(promo.promotion_id, 'is_active', e.target.value === 'yes')}
-                        className="w-full px-2 py-1 border border-gray-300 rounded"
-                      >
-                        <option value="yes">Hoạt động</option>
-                        <option value="no">Tắt</option>
-                      </select>
-                    ) : (
-                      <span className={promo.is_active ? 'text-green-600' : 'text-red-600'}>
-                        {promo.is_active ? 'Hoạt động' : 'Tắt'}
+                      <span className="inline-flex items-center gap-1">
+                        <span className="font-semibold text-green-700">{item.discount_value}</span>
+                        <span className="text-gray-500 text-xs">
+                          {item.discount_type === 'percentage' ? '%' : 'VND'}
+                        </span>
                       </span>
                     )}
                   </td>
-                  <td className="border p-2 text-center space-x-2">
+
+                  {/* Đơn tối thiểu */}
+                  <td className="py-3 px-4">
                     {isEditing ? (
-                      <>
-                        <button
-                          onClick={() => handleSavePromotion(promo.promotion_id)}
-                          className="bg-green-500 text-white px-2 py-1 rounded text-sm hover:bg-green-600"
-                        >
-                          Lưu
-                        </button>
-                        <button
-                          onClick={() => handleCancelEdit(promo.promotion_id)}
-                          className="bg-gray-500 text-white px-2 py-1 rounded text-sm hover:bg-gray-600"
-                        >
-                          Hủy
-                        </button>
-                      </>
+                      <input
+                        type="number"
+                        value={item.min_order_value || 0}
+                        min={0}
+                        onChange={e => handleChange(promo.promotion_id, 'min_order_value', e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-300 focus:outline-none text-sm"
+                      />
                     ) : (
-                      <>
-                        <button
-                          onClick={() => handleEdit(promo)}
-                          className="bg-blue-500 text-white px-2 py-1 rounded text-sm hover:bg-blue-600"
-                        >
-                          Sửa
-                        </button>
-                        <button
-                          onClick={() => handleDeletePromotion(promo.promotion_id)}
-                          className="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600"
-                        >
-                          Xóa
-                        </button>
-                      </>
+                      <span className="text-sm">
+                        {Number(item.min_order_value || 0).toLocaleString('vi-VN')}$
+                      </span>
                     )}
+                  </td>
+
+                  {/* Thời gian */}
+                  <td className="py-3 px-4">
+                    {isEditing ? (
+                      <div className="flex flex-col gap-2">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-0.5">Từ ngày</label>
+                          <input
+                            type="datetime-local"
+                            value={formatDateTime(item.start_date)}
+                            onChange={e => handleChange(promo.promotion_id, 'start_date', e.target.value)}
+                            className="border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-300 focus:outline-none text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-0.5">Đến ngày</label>
+                          <input
+                            type="datetime-local"
+                            value={formatDateTime(item.end_date)}
+                            onChange={e => handleChange(promo.promotion_id, 'end_date', e.target.value)}
+                            className="border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-300 focus:outline-none text-sm"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-gray-600 space-y-0.5">
+                        <p>Từ: {item.start_date ? new Date(item.start_date).toLocaleString('vi-VN') : '—'}</p>
+                        <p>Đến: {item.end_date ? new Date(item.end_date).toLocaleString('vi-VN') : '—'}</p>
+                      </div>
+                    )}
+                  </td>
+
+                  {/* Hành động */}
+                  <td className="py-3 px-4 text-center">
+                    <div className="flex gap-2 justify-center">
+                      {isEditing ? (
+                        <>
+                          <button
+                            onClick={() => handleSave(promo.promotion_id)}
+                            className="bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-600"
+                          >
+                            💾 Lưu
+                          </button>
+                          <button
+                            onClick={() => handleCancelEdit(promo.promotion_id)}
+                            className="bg-gray-400 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-500"
+                          >
+                            Hủy
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleEdit(promo)}
+                            className="bg-yellow-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-yellow-600"
+                          >
+                            ✏️ Sửa
+                          </button>
+                          <button
+                            onClick={() => handleDelete(promo.promotion_id)}
+                            className="bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-red-600"
+                          >
+                            🗑️ Xóa
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-      </div>
-
-      <div className="mt-4 flex justify-between items-center">
-        <div>Trang {currentPage} / {totalPages || 1}</div>
-        <div className="space-x-2">
-          <button
-            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-            disabled={currentPage === 1}
-            className="px-4 py-2 bg-gray-300 rounded disabled:opacity-50"
-          >
-            Trước
-          </button>
-          <button
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-            disabled={currentPage === totalPages}
-            className="px-4 py-2 bg-gray-300 rounded disabled:opacity-50"
-          >
-            Sau
-          </button>
-        </div>
       </div>
     </div>
   );
