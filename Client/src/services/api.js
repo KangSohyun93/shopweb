@@ -71,10 +71,8 @@ export const deleteCartItem = cartService.deleteCartItem;
 
 export const uploadPrimaryImage = productService.uploadPrimaryImage;
 export const uploadAdditionalImage = productService.uploadAdditionalImage;
-export const uploadVariantImage = productService.uploadVariantImage;
 export const deletePrimaryImage = productService.deletePrimaryImage;
 export const deleteAdditionalImage = productService.deleteAdditionalImage;
-export const deleteVariantImage = productService.deleteVariantImage;
 
 export const applyPromotion = promotionService.applyPromotion;
 export const createAddress = addressService.createAddress;

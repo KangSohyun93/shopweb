@@ -3,10 +3,8 @@ import axios from 'axios';
 import {
   uploadPrimaryImage,
   uploadAdditionalImage,
-  uploadVariantImage,
   deletePrimaryImage,
   deleteAdditionalImage,
-  deleteVariantImage,
 } from '../../services/productService';
 
 /**
@@ -20,7 +18,6 @@ const ProductImageManager = ({ product, onImageUpdate }) => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [additionalImages, setAdditionalImages] = useState(product?.additional_images || []);
-  const [variantImages, setVariantImages] = useState({});
 
   const fileInputRef = useRef(null);
   const additionalFileRef = useRef(null);
@@ -107,47 +104,6 @@ const ProductImageManager = ({ product, onImageUpdate }) => {
     }
   };
 
-  // Upload ảnh biến thể
-  const handleUploadVariantImage = async (variantId, e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await uploadVariantImage(variantId, file);
-      setVariantImages({
-        ...variantImages,
-        [variantId]: response.data.image_url,
-      });
-      setSuccess('✅ Upload ảnh biến thể thành công!');
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError('❌ Lỗi upload ảnh biến thể: ' + err.response?.data?.message || err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Delete ảnh biến thể
-  const handleDeleteVariantImage = async (variantId) => {
-    if (!window.confirm('Xóa ảnh biến thể này?')) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-      await deleteVariantImage(variantId);
-      const newImages = { ...variantImages };
-      delete newImages[variantId];
-      setVariantImages(newImages);
-      setSuccess('✅ Xóa ảnh biến thể thành công!');
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError('❌ Lỗi xóa ảnh biến thể: ' + err.response?.data?.message || err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="bg-white p-6 rounded-lg border border-gray-200 mt-6">
@@ -258,63 +214,6 @@ const ProductImageManager = ({ product, onImageUpdate }) => {
         )}
       </div>
 
-      {/* VARIANT IMAGES */}
-      {product?.variants && product.variants.length > 0 && (
-        <div>
-          <h4 className="font-semibold text-lg mb-4">🎨 Ảnh Biến thể (Variant Images)</h4>
-          <div className="space-y-6">
-            {product.variants.map((variant) => (
-              <div key={variant.variant_id} className="p-4 bg-gray-50 rounded border border-gray-200">
-                <div className="flex items-center gap-6">
-                  {/* Image */}
-                  <div className="w-32 h-32 bg-gray-100 rounded flex-shrink-0 flex items-center justify-center overflow-hidden">
-                    {variant.image_url || variantImages[variant.variant_id] ? (
-                      <img
-                        src={variantImages[variant.variant_id] || variant.image_url}
-                        alt={variant.size}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-gray-400 text-sm">Chưa có ảnh</span>
-                    )}
-                  </div>
-
-                  {/* Details & Controls */}
-                  <div className="flex-1">
-                    <p className="font-semibold">Size: {variant.size}</p>
-                    <p className="text-sm text-gray-600">SKU: {variant.sku}</p>
-                    <p className="text-sm text-gray-600">Giá: ${variant.price}</p>
-
-                    <div className="mt-4 flex gap-2">
-                      <label className="flex-1">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleUploadVariantImage(variant.variant_id, e)}
-                          disabled={loading}
-                          className="hidden"
-                        />
-                        <span className="block text-center bg-blue-500 text-white px-3 py-2 rounded text-sm hover:bg-blue-600 cursor-pointer disabled:opacity-50">
-                          📤 Upload
-                        </span>
-                      </label>
-                      {(variant.image_url || variantImages[variant.variant_id]) && (
-                        <button
-                          onClick={() => handleDeleteVariantImage(variant.variant_id)}
-                          disabled={loading}
-                          className="bg-red-500 text-white px-3 py-2 rounded text-sm hover:bg-red-600 disabled:opacity-50"
-                        >
-                          🗑️ Xóa
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {loading && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded">

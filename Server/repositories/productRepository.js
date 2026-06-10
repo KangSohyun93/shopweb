@@ -241,18 +241,7 @@ const productRepository = {
     await db.query('DELETE FROM product_images WHERE image_id = ?', [imageId]);
   },
 
-  /**
-   * Cập nhật ảnh biến thể
-   * @param {number} variantId - Variant ID
-   * @param {string} imageUrl - URL ảnh (null để xóa)
-   * @returns {Promise<void>}
-   */
-  updateVariantImage: async (variantId, imageUrl) => {
-    await db.query(
-      'UPDATE product_variants SET image_url = ? WHERE variant_id = ?',
-      [imageUrl, variantId]
-    );
-  },
+
 
   /**
    * Lấy biến thể theo ID
@@ -261,7 +250,7 @@ const productRepository = {
    */
   getVariantById: async (variantId) => {
     const [rows] = await db.query(
-      'SELECT variant_id, sku, size, price, stock_quantity, image_url FROM product_variants WHERE variant_id = ?',
+      'SELECT variant_id, sku, size, price, stock_quantity FROM product_variants WHERE variant_id = ?',
       [variantId]
     );
     return rows.length > 0 ? rows[0] : null;

@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { SocketProvider } from './contexts/SocketContext';
 
-import AdminLayout from './layouts/AminLayout'; 
+import AdminLayout from './layouts/AdminLayout'; 
 import CustomerLayout from './layouts/CustomerLayout'; 
 
 import LoginPage from './pages/public/Login';

@@ -5,7 +5,7 @@ const Product = {
     const [rows] = await pool.query(`
       SELECT p.product_id, p.name, p.description, p.category_id, p.brand_id, p.primary_image_url,
              c.name as category_name, b.name as brand_name,
-             pv.variant_id, pv.sku, pv.size, pv.price, pv.stock_quantity
+             pv.variant_id, pv.sku, pv.color, pv.size, pv.price, pv.stock_quantity, pv.weight
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.category_id
       LEFT JOIN brands b ON p.brand_id = b.brand_id
@@ -33,9 +33,11 @@ const Product = {
         products[row.product_id].variants.push({
           variant_id: row.variant_id,
           sku: row.sku,
+          color: row.color,
           size: row.size,
           price: row.price,
-          stock_quantity: row.stock_quantity
+          stock_quantity: row.stock_quantity,
+          weight: row.weight
         });
       }
     });
@@ -66,7 +68,7 @@ const Product = {
     const [rows] = await pool.query(`
       SELECT p.product_id, p.name, p.description, p.category_id, p.brand_id, p.primary_image_url,
              c.name as category_name, b.name as brand_name,
-             pv.variant_id, pv.sku, pv.size, pv.price, pv.stock_quantity
+             pv.variant_id, pv.sku, pv.color, pv.size, pv.price, pv.stock_quantity, pv.weight
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.category_id
       LEFT JOIN brands b ON p.brand_id = b.brand_id
@@ -93,9 +95,11 @@ const Product = {
         product.variants.push({
           variant_id: row.variant_id,
           sku: row.sku,
+          color: row.color,
           size: row.size,
           price: row.price,
-          stock_quantity: row.stock_quantity
+          stock_quantity: row.stock_quantity,
+          weight: row.weight
         });
       }
     });
@@ -128,9 +132,9 @@ const Product = {
     // Đã xóa cột image_url khỏi lệnh INSERT vào product_variants
     for (const variant of variants) {
       await pool.query(`
-        INSERT INTO product_variants (product_id, sku, size, price, stock_quantity)
-        VALUES (?, ?, ?, ?, ?)
-      `, [productId, variant.sku, variant.size, variant.price, variant.stock_quantity]);
+        INSERT INTO product_variants (product_id, sku, color, size, price, stock_quantity, weight)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [productId, variant.sku, variant.color || 'default', variant.size || 'one-size', variant.price, variant.stock_quantity, variant.weight || null]);
     }
     return productId;
   },
@@ -155,9 +159,9 @@ const Product = {
     // Đã xóa cột image_url khỏi lệnh INSERT vào product_variants
     for (const variant of variants) {
       await pool.query(`
-        INSERT INTO product_variants (product_id, sku, size, price, stock_quantity)
-        VALUES (?, ?, ?, ?, ?)
-      `, [product_id, variant.sku, variant.size, variant.price, variant.stock_quantity]);
+        INSERT INTO product_variants (product_id, sku, color, size, price, stock_quantity, weight)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [product_id, variant.sku, variant.color || 'default', variant.size || 'one-size', variant.price, variant.stock_quantity, variant.weight || null]);
     }
   },
 
@@ -176,7 +180,7 @@ searchByName: async (query) => {
         p.product_id, p.name, p.description, p.primary_image_url,
         c.name as category_name,
         b.name as brand_name,
-        pv.variant_id, pv.sku, pv.size, pv.price, pv.stock_quantity
+        pv.variant_id, pv.sku, pv.color, pv.size, pv.price, pv.stock_quantity, pv.weight
      FROM products p
      LEFT JOIN categories c ON p.category_id = c.category_id
      LEFT JOIN brands b ON p.brand_id = b.brand_id
@@ -187,8 +191,8 @@ searchByName: async (query) => {
         c.name LIKE ?         -- Tìm theo tên danh mục
      GROUP BY
         p.product_id, p.name, p.description, p.primary_image_url,
-        c.name, b.name, pv.variant_id, pv.sku, pv.size,
-        pv.price, pv.stock_quantity`,
+        c.name, b.name, pv.variant_id, pv.sku, pv.color, pv.size,
+        pv.price, pv.stock_quantity, pv.weight`,
     [searchTerm, searchTerm, searchTerm] 
   );
 
@@ -213,9 +217,11 @@ searchByName: async (query) => {
       products[row.product_id].variants.push({
         variant_id: row.variant_id,
         sku: row.sku,
+        color: row.color,
         size: row.size,
         price: row.price,
-        stock_quantity: row.stock_quantity
+        stock_quantity: row.stock_quantity,
+        weight: row.weight
       });
     }
   });

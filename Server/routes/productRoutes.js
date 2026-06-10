@@ -18,9 +18,9 @@ router.delete('/:product_id', authenticateJWT, isAdmin, asyncHandler(productCont
 // Admin routes - Image upload/delete
 router.post('/upload-primary-image/:productId', authenticateJWT, isAdmin, upload.single('image'), asyncHandler(productController.uploadPrimaryImage));
 router.post('/upload-additional-image/:productId', authenticateJWT, isAdmin, upload.single('image'), asyncHandler(productController.uploadAdditionalImage));
-router.post('/upload-variant-image/:variantId', authenticateJWT, isAdmin, upload.single('image'), asyncHandler(productController.uploadVariantImage));
+
 router.delete('/delete-primary-image/:productId', authenticateJWT, isAdmin, asyncHandler(productController.deletePrimaryImage));
 router.delete('/delete-additional-image/:imageId', authenticateJWT, isAdmin, asyncHandler(productController.deleteAdditionalImage));
-router.delete('/delete-variant-image/:variantId', authenticateJWT, isAdmin, asyncHandler(productController.deleteVariantImage));
+
 
 module.exports = router;

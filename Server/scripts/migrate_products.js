@@ -95,9 +95,9 @@ async function start() {
                 const priceValue = parseFloat(p.price) || 0;
                 
                 await db.query(
-                    `INSERT INTO product_variants (product_id, sku, size, price, stock_quantity, image_url) 
-                     VALUES (?, ?, ?, ?, ?, ?)`,
-                    [newProductId, skuCode, 'Free Size', priceValue, 100, imageUrl]
+                    `INSERT INTO product_variants (product_id, sku, size, price, stock_quantity) 
+                     VALUES (?, ?, ?, ?, ?)`,
+                    [newProductId, skuCode, 'Free Size', priceValue, 100]
                 );
 
                 countSuccess++;

@@ -1,5 +1,5 @@
 const Product = require('../models/product');
-const ProductVariant = require('../models/productVariant');
+
 const cloudinary = require('../config/cloudinary');
 const pool = require('../config/db');
 
@@ -105,7 +105,7 @@ const productController = {
 
       const result = await new Promise((resolve, reject) => {
         cloudinary.uploader.upload_stream(
-          { folder: 'shopweb', upload_preset: 'shopweb-upload' },
+          { folder: 'shopweb', /*upload_preset: 'shopweb-upload'*/ },
           (error, result) => {
             if (error) reject(error);
             else resolve(result);
@@ -134,7 +134,7 @@ const productController = {
 
       const result = await new Promise((resolve, reject) => {
         cloudinary.uploader.upload_stream(
-          { folder: 'shopweb', upload_preset: 'shopweb-upload' },
+          { folder: 'shopweb', /*upload_preset: 'shopweb-upload'*/ },
           (error, result) => {
             if (error) reject(error);
             else resolve(result);
@@ -154,35 +154,6 @@ const productController = {
     }
   },
 
-  uploadVariantImage: async (req, res) => {
-    try {
-      const { variantId } = req.params;
-      if (!req.file) {
-        return res.status(400).json({ message: 'Vui lòng chọn file ảnh.' });
-      }
-
-      const result = await new Promise((resolve, reject) => {
-        cloudinary.uploader.upload_stream(
-          { folder: 'shopweb', upload_preset: 'shopweb-upload' },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          }
-        ).end(req.file.buffer);
-      });
-
-      const imageUrl = result.secure_url;
-      const updated = await ProductVariant.update(variantId, { image_url: imageUrl });
-      if (updated) {
-        res.status(200).json({ message: 'Upload ảnh biến thể thành công', image_url: imageUrl });
-      } else {
-        res.status(404).json({ message: 'Biến thể không tồn tại' });
-      }
-    } catch (err) {
-      console.error('Error uploading variant image:', err);
-      res.status(500).json({ message: 'Lỗi server khi upload ảnh biến thể' });
-    }
-  },
 
   deletePrimaryImage: async (req, res) => {
     try {
@@ -233,29 +204,6 @@ const productController = {
     }
   },
 
-  deleteVariantImage: async (req, res) => {
-    try {
-      const { variantId } = req.params;
-      const variant = await ProductVariant.getById(variantId);
-      if (!variant || !variant.image_url) {
-        return res.status(404).json({ message: 'Không tìm thấy ảnh biến thể để xóa' });
-      }
-
-      const imageUrl = variant.image_url;
-      const publicId = imageUrl.split('/').slice(-1)[0].split('.')[0];
-      await cloudinary.uploader.destroy(`shopweb/${publicId}`);
-
-      const updated = await ProductVariant.update(variantId, { image_url: null });
-      if (updated) {
-        res.status(200).json({ message: 'Xóa ảnh biến thể thành công' });
-      } else {
-        res.status(404).json({ message: 'Biến thể không tồn tại' });
-      }
-    } catch (err) {
-      console.error('Error deleting variant image:', err);
-      res.status(500).json({ message: 'Lỗi server khi xóa ảnh biến thể' });
-    }
-  }
 };
 
 module.exports = productController;

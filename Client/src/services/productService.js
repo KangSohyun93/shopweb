@@ -56,16 +56,6 @@ export const deletePrimaryImage = (productId) =>
 export const deleteAdditionalImage = (imageId) =>
   api.delete(`/products/delete-additional-image/${imageId}`);
 
-export const uploadVariantImage = (variantId, file) => {
-  const formData = new FormData();
-  formData.append('image', file);
-  return api.post(`/products/upload-variant-image/${variantId}`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
-};
-
-export const deleteVariantImage = (variantId) =>
-  api.delete(`/products/delete-variant-image/${variantId}`);
 
 export default {
   getAllProducts,
@@ -79,6 +69,4 @@ export default {
   uploadAdditionalImage,
   deletePrimaryImage,
   deleteAdditionalImage,
-  uploadVariantImage,
-  deleteVariantImage,
 };

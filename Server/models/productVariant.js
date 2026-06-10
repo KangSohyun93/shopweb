@@ -41,34 +41,32 @@ const ProductVariant = {
             size: row.size,
             price: row.price,
             stock_quantity: row.stock_quantity,
-            weight: row.weight,
-            image_url: row.image_url
+            weight: row.weight
         };
     },
 
     // Tạo biến thể mới
-    create: async ({ product_id, sku, size, price, stock_quantity, weight, image_url }) => {
+    create: async ({ product_id, sku, size, price, stock_quantity, weight }) => {
         const [result] = await pool.query(
-            `INSERT INTO product_variants (product_id, sku, size, price, stock_quantity, weight, image_url)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO product_variants (product_id, sku, size, price, stock_quantity, weight)
+             VALUES (?, ?, ?, ?, ?, ?)`,
             [
                 product_id,
                 sku,
                 size || null,
                 price,
                 stock_quantity,
-                weight || null,
-                image_url || null
+                weight || null
             ]
         );
         return result.insertId;
     },
 
     // Cập nhật biến thể
-    update: async (id, { sku, size, price, stock_quantity, weight, image_url }) => {
+    update: async (id, { sku, size, price, stock_quantity, weight }) => {
         const [result] = await pool.query(
             `UPDATE product_variants
-             SET sku = ?, size = ?, price = ?, stock_quantity = ?, weight = ?, image_url = ?
+             SET sku = ?, size = ?, price = ?, stock_quantity = ?, weight = ?
              WHERE variant_id = ?`,
             [
                 sku,
@@ -76,7 +74,6 @@ const ProductVariant = {
                 price,
                 stock_quantity,
                 weight || null,
-                image_url || null,
                 id
             ]
         );

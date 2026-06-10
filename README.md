@@ -29,154 +29,175 @@
 - **npm** hoặc **yarn**
 - **Git**
 
-## 🚀 Hướng dẫn cài đặt
+## 🚀 Hướng dẫn cài đặt (Setup Guide)
 
-### 1. Clone repository
+### Step 1️⃣: Clone Repository
 
 ```bash
+# Clone từ GitHub
 git clone https://github.com/KangSohyun93/shopweb
-
-# Hoặc nếu chưa có repo, tải ZIP về và giải nén
-# Sau đó cd vào thư mục
 cd shopweb
+
+# Hoặc nếu chưa có GitHub repo, tải ZIP về
+# → Giải nén
+# → Mở terminal tại thư mục gốc
 ```
 
-### 2. Cài đặt dependencies
+---
 
-#### Cài đặt Backend:
+### Step 2️⃣: Cài đặt Dependencies
+
+#### Backend:
 ```bash
 cd Server
 npm install
 cd ..
 ```
 
-#### Cài đặt Frontend:
+#### Frontend:
 ```bash
 cd Client
 npm install
 cd ..
 ```
 
-### 3. Cấu hình Database
+---
 
-#### Bước 1: Đảm bảo MySQL đang chạy
+### Step 3️⃣: Cấu hình Database
+
+#### Bước 3.1: Đảm bảo MySQL chạy
 ```bash
-# Windows: Kiểm tra MySQL service
-# Nhấn Win + R, gõ: services.msc
-# Tìm "MySQL" và đảm bảo đang Running
+# Windows: Nhấn Win+R → gõ services.msc → tìm MySQL8.0 → Start
+# macOS: brew services start mysql
+# Linux: sudo systemctl start mysql
 
-# Hoặc kiểm tra qua terminal
+# Kiểm tra:
 mysql --version
+mysql -u root -p  # Enter, nhập password
+SHOW DATABASES;
+exit;
 ```
 
-#### Bước 2: Tạo database và chạy script khởi tạo
+#### Bước 3.2: Khởi tạo Database
 
-**Cách 1: Chạy từ MySQL Command Line**
+**Cách nhanh nhất (Khuyến nghị):**
+```bash
+# Từ thư mục gốc shopweb
+cd Server
+mysql -u root -p < database/init.sql
+cd ..
+```
+
+**Hoặc cách khác:**
 ```bash
 # Mở MySQL shell
 mysql -u root -p
 
-# Trong MySQL shell, gõ lệnh sau (thay đường dẫn bằng thư mục bạn clone về):
-source /path/to/shopweb/Server/database/init.sql
-
-# Ví dụ Windows:
-# source C:/Users/YourName/shopweb/Server/database/init.sql
-
-# Ví dụ macOS/Linux:
-# source /home/username/shopweb/Server/database/init.sql
-
-# Sau đó exit
+# Trong MySQL shell:
+source Server/database/init.sql;
 exit;
 ```
 
-**Cách 2: Chạy từ terminal (đơn giản hơn)**
+**Kiểm tra thành công:**
 ```bash
-# Đứng tại thư mục gốc shopweb
-mysql -u root -p < Server/database/init.sql
+mysql -u root -p shopweb_db -e "SHOW TABLES;"
 ```
 
-**Cách 3: Sử dụng MySQL Workbench (GUI)**
-- Mở MySQL Workbench
-- Kết nối đến MySQL server
-- File → Open SQL Script → chọn `Server/database/init.sql`
-- Click icon Execute (⚡)
+Sẽ thấy các bảng: users, products, product_variants, orders, cart, reviews, v.v.
 
-#### Bước 3: (Tùy chọn) Thêm dữ liệu mẫu
-```bash
-# Nếu có file seed.sql
-mysql -u root -p shopweb_db < Server/database/seed.sql
-```
+---
 
-#### Bước 4: Kiểm tra database đã tạo thành công
-```bash
-mysql -u root -p -e "USE shopweb_db; SHOW TABLES;"
-```
+### Step 4️⃣: Cấu hình Environment (.env)
 
-Bạn sẽ thấy danh sách các bảng: users, products, orders, cart, reviews, v.v.
-
-### 4. Cấu hình môi trường
-
-#### Tạo file môi trường cho Backend
+#### Backend Configuration (`Server/.env`):
 
 ```bash
-# Di chuyển vào thư mục Server
+# Tạo file .env trong thư mục Server
 cd Server
-
-# Tạo file .env (Windows PowerShell)
+# Windows PowerShell:
 New-Item -Path .env -ItemType File
-
-# Hoặc trên macOS/Linux
+# Hoặc macOS/Linux:
 touch .env
 ```
 
-Mở file `Server/.env` và thêm nội dung sau:
+Thêm nội dung sau vào `Server/.env`:
 
 ```env
-# Database Configuration
+# ========== DATABASE ==========
 DB_HOST=localhost
 DB_USER=root
 DB_PASSWORD=your_mysql_password_here
 DB_NAME=shopweb_db
+DB_PORT=3306
 
-# JWT Secret (Thay bằng chuỗi ngẫu nhiên của bạn)
-JWT_SECRET=your_super_secret_key_min_32_characters_change_this
+# ========== JWT ==========
+JWT_SECRET=your_secret_key_at_least_32_characters_long_change_this_in_production
 
-# Server Configuration
+# ========== SERVER ==========
 PORT=5000
+NODE_ENV=development
 CLIENT_URL=http://localhost:3001
 
-# Email Configuration (cho chức năng OTP)
-# Với Gmail, cần tạo App Password: https://support.google.com/accounts/answer/185833
+# ========== EMAIL (OTP) ==========
+# Để gửi OTP, cần cấu hình email
+# Với Gmail: https://support.google.com/accounts/answer/185833
 EMAIL_USER=your_email@gmail.com
-**Mở 2 terminal/command prompt riêng biệt:**
+EMAIL_PASSWORD=your_app_password
 
-#### Terminal 1 - Chạy Backend Server:
+# ========== CLOUDINARY (Image Upload) ==========
+# Đăng ký tại: https://cloudinary.com
+CLOUDINARY_NAME=your_cloudinary_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+
+# ========== REDIS (Optional, cho cache) ==========
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+
+# ========== SOCKET.IO ==========
+SOCKET_IO_CORS_ORIGIN=http://localhost:3001
+```
+
+#### Frontend Configuration (`Client/.env`):
+
 ```bash
-# Từ thư mục gốc shopweb
+cd ../Client
+# Windows PowerShell:
+New-Item -Path .env -ItemType File
+# Hoặc macOS/Linux:
+touch .env
+```
+
+Thêm nội dung vào `Client/.env`:
+
+```env
+REACT_APP_API_URL=http://localhost:5000
+REACT_APP_SOCKET_URL=http://localhost:5000
+```
+
+---
+
+### Step 5️⃣: Chạy Application
+
+**Mở 2 Terminal riêng biệt:**
+
+#### Terminal 1 - Backend Server:
+```bash
 cd Server
 node index.js
-
-# Hoặc (nếu đã cấu hình npm scripts)
-npm start
 ```
 
 ✅ **Thành công khi thấy:**
 ```
-Server running at http://localhost:5000
-Socket.IO server ready
-Connected to MySQL database
+✓ MySQL connected
+✓ Redis connected
+✓ Socket.IO server running
+✓ Server listening on port 5000
 ```
 
-❌ **Nếu gặp lỗi:**
-- `Error: ER_ACCESS_DENIED_ERROR` → Sai DB_USER hoặc DB_PASSWORD trong .env
-- `Error: ER_BAD_DB_ERROR` → Database chưa được tạo, chạy lại bước 3
-- `Error: Cannot find module` → Chưa chạy `npm install`
-
----
-
-#### Terminal 2 - Chạy Frontend Client:
+#### Terminal 2 - Frontend Client:
 ```bash
-# Từ thư mục gốc shopweb
 cd Client
 npm start
 ```
@@ -184,41 +205,19 @@ npm start
 ✅ **Thành công khi thấy:**
 ```
 Compiled successfully!
-You can now view client in the browser.
-
 Local:            http://localhost:3001
 ```
 
-Browser sẽ tự động mở trang `http://localhost:3001`
+Browser tự động mở: `http://localhost:3001`
 
 ---
 
-### 6. Kiểm tra hoạt động
+### Step 6️⃣: Tạo Tài khoản Admin
 
-- **Frontend:** http://localhost:3001
-- **Backend API:** http://localhost:5000
-- **Test API:** http://localhost:5000/test-db (kiểm tra kết nối database)
-# Di chuyển vào thư mục Client
-cd ../Client
-
-# Tạo file .env
-# Windows PowerShell:
-New-Item -Path .env -ItemType File
-ạo tài khoản đầu tiên
-
-### Tạo tài khoản Customer:
-1. Mở browser: http://localhost:3001
-2. Click **Đăng ký** (hoặc vào `/signup`)
-3. Điền thông tin và đăng ký
-4. Nhập mã OTP gửi về email (kiểm tra cả Spam)
-5. Đăng nhập và sử dụng
-
-### Tạo tài khoản Admin:
-
-**Cách 1: Nâng cấp user thường thành admin (Khuyến nghị)**
+#### Cách 1: Nâng cấp user hiện tại (Khuyến nghị)
 
 ```bash
-# Đăng ký tài khoản thường trước, sau đó chạy lệnh SQL:
+# Đăng ký tài khoản bình thường trước, sau đó chạy:
 mysql -u root -p shopweb_db
 
 # Trong MySQL shell:
@@ -226,77 +225,112 @@ UPDATE users SET role = 'admin' WHERE email = 'your_email@example.com';
 exit;
 ```
 
-**Cách 2: Tạo admin trực tiếp qua SQL**
+#### Cách 2: Tạo admin trực tiếp
 
 ```bash
 mysql -u root -p shopweb_db
 ```
 
-Trong MySQL shell, chạy:
-
+Chạy lệnh SQL:
 ```sql
--- Tạo password hash cho mật khẩu "admin123"
--- Hash này được tạo bằng bcrypt với salt=10
-INSERT INTO users (username, email, password_hash, role, is_verified) 
+INSERT INTO users (username, email, password_hash, role, is_verified, created_at) 
 VALUES (
-    'admin', 
-    'admin@shopweb.com', 
-    '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 
-    'admin', 
-    TRUE
+    'admin',
+    'admin@shopweb.local',
+    '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    'admin',
+    TRUE,
+    NOW()
 );
+exit;
 ```
 
-**Thông tin đăng nhập:**
-- Email: `admin@shopweb.com`
+**Đăng nhập:**
+- Email: `admin@shopweb.local`
 - Password: `admin123`
 
-⚠️ **Lưu ý:** Đổi mật khẩu ngay sau khi đăng nhập lần đầu!
+⚠️ **Đổi mật khẩu ngay lần đầu đăng nhập!**
 
-**Cách 3: Sử dụng Node.js để tạo password hash tùy chỉnh**
+---
 
-```bash
-# Trong thư mục Server
-node
+### Step 7️⃣: Kiểm tra Hoạt động
 
-# Trong Node REPL:
-const bcrypt = require('bcrypt');
-bcrypt.hash('your_password', 10, (err, hash) => {
-    console.log(hash);
-});
+| Thành phần | URL | Mô tả |
+|-----------|-----|-------|
+| Frontend | http://localhost:3001 | Giao diện khách hàng |
+| Backend | http://localhost:5000 | API server |
+| API Test | http://localhost:5000/api | Kiểm tra API |
+| Docs | Xem `RUNNING_GUIDE.md` | Hướng dẫn chi tiết |
 
-# Copy hash và dùng trong câu lệnh INSERT ở trên
-``
+---
+
+## 🔄 Backup & Restore Database
+
+### Tạo Backup:
 ```bash
 cd Server
-node index.js
-# hoặc
-npm start
+node backup-database.js
 ```
 
-Server sẽ chạy tại: `http://localhost:5000`
+File backup sẽ được lưu tại: `Server/backups/backup_database_*.json`
 
-#### Terminal 2 - Frontend:
+### Restore từ Backup:
 ```bash
-cd Client
-npm start
+cd Server
+node restore-database.js [filename]
+# hoặc tự động dùng backup gần nhất:
+node restore-database.js
 ```
 
-Client sẽ chạy tại: `http://localhost:3001`
-
-## 👤 Tài khoản test
-
-### Admin:
-Sau khi chạy seed.sql, bạn cần tạo tài khoản admin thủ công hoặc đăng ký và cập nhật role trong database:
-
-```sql
--- Tạo tài khoản admin
-INSERT INTO users (username, email, password_hash, role, is_verified) 
-VALUES ('admin', 'admin@shopweb.com', '$2b$10$encrypted_password', 'admin', TRUE);
-
--- Hoặc cập nhật user hiện có thành admin
-UPDATE users SET role = 'admin' WHERE email = 'your_email@example.com';
+### Migrate SKU → COLOR (Nếu cập nhật từ version cũ):
+```bash
+cd Server
+node migrate-sku-to-color.js [backup_filename]
+# hoặc tự động dùng backup gần nhất:
+node migrate-sku-to-color.js
 ```
+
+---
+
+## ⚠️ Troubleshooting
+
+| Lỗi | Nguyên nhân | Giải pháp |
+|-----|-----------|---------|
+| `ER_ACCESS_DENIED_ERROR` | Sai mật khẩu MySQL | Kiểm tra `DB_PASSWORD` trong `.env` |
+| `ER_BAD_DB_ERROR` | Database không tồn tại | Chạy lại: `mysql -u root -p < Server/database/init.sql` |
+| `Cannot find module` | Chưa cài dependencies | Chạy: `npm install` |
+| Port 5000 đang dùng | Ứng dụng khác đang chạy | `netstat -ano \| findstr :5000` (Windows) để tìm process |
+| Port 3001 đang dùng | Ứng dụng khác đang chạy | Đặt `PORT=3002` trong `.env` của Frontend |
+| Lỗi Socket.IO | Redis chưa chạy | Start Redis hoặc disable tạm thời |
+| Ảnh không upload | Cloudinary chưa cấu hình | Thêm `CLOUDINARY_*` vào `.env` |
+
+---
+
+## 📊 Thử Nghiệm Features
+
+### 1. Đăng ký & OTP:
+- Vào `/signup`
+- Điền email hợp lệ
+- Kiểm tra email OTP (cả Spam)
+- Xác thực và đăng nhập
+
+### 2. Quản lý Sản phẩm (Admin):
+- Vào Admin Dashboard
+- Thêm/Sửa/Xóa sản phẩm
+- Upload ảnh (qua Cloudinary)
+- Cập nhật giá, màu sắc
+
+### 3. Giỏ hàng & Thanh toán:
+- Thêm sản phẩm vào giỏ
+- Kiểm tra tổng giá
+- Chọn địa chỉ giao hàng
+- Đặt hàng
+
+### 4. Chat Realtime:
+- Mở 2 browser (user & admin)
+- Kiểm tra chat realtime qua Socket.IO
+
+---
 
 ### Customer:
 Đăng ký tài khoản mới qua trang `/signup`
@@ -535,6 +569,43 @@ chat:new-message       - Nhận tin nhắn mới
 chat:typing            - Đang gõ...
 chat:mark-read         - Đánh dấu đã đọc
 ```
+
+## 📚 Tài liệu tham khảo
+
+### Hướng dẫn chính
+- **[RUNNING_GUIDE.md](RUNNING_GUIDE.md)** - Hướng dẫn chạy ứng dụng chi tiết
+- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Tham khảo nhanh các lệnh
+
+### Database
+- **[Server/README_BACKUP.md](Server/README_BACKUP.md)** - Hướng dẫn backup/restore database
+- **[Server/MIGRATION_SKU_TO_COLOR.md](Server/MIGRATION_SKU_TO_COLOR.md)** - Migration từ SKU sang COLOR
+
+### Kiến trúc & Tối ưu
+- **[KIEN_TRUC_THUAT_TOAN_XAY_DUNG_DU_AN.md](KIEN_TRUC_THUAT_TOAN_XAY_DUNG_DU_AN.md)** - Kiến trúc dự án
+- **[SOLID_REFACTORING_COMPLETE.md](SOLID_REFACTORING_COMPLETE.md)** - SOLID principles
+
+### Lệnh nhanh
+
+```bash
+# Backend
+cd Server
+npm install              # Cài dependencies
+node index.js           # Chạy server
+node backup-database.js # Backup database
+node restore-database.js # Restore from backup
+node drop-all-tables.js # Drop all tables
+node migrate-sku-to-color.js # Migrate SKU to COLOR
+
+# Frontend  
+cd Client
+npm install             # Cài dependencies
+npm start              # Chạy dev server
+
+# Database
+mysql -u root -p < Server/database/init.sql  # Init database
+```
+
+---
 
 ## 🎯 Roadmap
 
