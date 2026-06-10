@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getUserConversation, getChatMessages } from '../services/api';
 import { useSocket } from '../contexts/SocketContext';
-
+ 
 const ChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -10,59 +10,80 @@ const ChatWidget = () => {
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  // FIX: Track unread count for the collapsed widget badge
+  const [unreadCount, setUnreadCount] = useState(0);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const { socket, connected } = useSocket();
-
+ 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
-
+ 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
+ 
   useEffect(() => {
     if (isOpen && !conversationId) {
       loadConversation();
     }
-
+ 
     if (isOpen && conversationId) {
       loadMessages();
+      // FIX: Clear unread count when user opens the chat
+      setUnreadCount(0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, conversationId]);
-
+ 
   // Socket event listeners
   useEffect(() => {
     if (!socket || !conversationId) return;
-
+ 
     // Listen for new messages
     const handleNewMessage = (data) => {
-      if (data.conversationId === conversationId) {
-        // Chỉ thêm tin nhắn từ admin, không thêm tin nhắn của chính mình
+      // FIX: Use == instead of === to handle int/string mismatch from socket
+      if (String(data.conversationId) === String(conversationId)) {
+        // Only add admin messages (user's own messages are handled via optimistic UI + handleMessageSent)
         if (data.sender_type === 'admin') {
-          // Check if already exists to prevent duplicates
           setMessages((prev) => {
-            const messageExists = prev.some(m => m.message_id === data.message_id);
+            const messageExists = prev.some(m => String(m.message_id) === String(data.message_id));
             if (messageExists) {
               console.log('⚠️ Message already exists, skipping duplicate');
               return prev;
             }
             return [...prev, data];
           });
-          
-          // Mark as read
-          socket.emit('chat:mark-read', conversationId);
+ 
+          if (isOpen) {
+            // Mark as read immediately since chat is open
+            socket.emit('chat:mark-read', conversationId);
+          } else {
+            // FIX: Increment unread count when widget is closed
+            setUnreadCount(prev => prev + 1);
+          }
         }
       }
     };
-
-    // Listen for message sent confirmation (only add if NOT already in messages)
+ 
+    // Listen for message sent confirmation — replace temp optimistic message with real one
     const handleMessageSent = (message) => {
-      // Chỉ thêm nếu message ID chưa tồn tại (tránh duplicate)
+      // FIX: Use String() comparison for safety
+      if (String(message.conversation_id) !== String(conversationId)) return;
+ 
       setMessages((prev) => {
-        const messageExists = prev.some(m => m.message_id === message.message_id);
+        // Try to replace temp message first
+        const hasTempMessage = prev.some(m => m.pending === true);
+        if (hasTempMessage) {
+          return prev.map(msg =>
+            msg.pending === true && msg.message === message.message
+              ? { ...message, pending: false }
+              : msg
+          );
+        }
+        // If no temp message found, check for duplicate before adding
+        const messageExists = prev.some(m => String(m.message_id) === String(message.message_id));
         if (messageExists) {
           console.log('⚠️ Message already exists, skipping duplicate');
           return prev;
@@ -70,41 +91,42 @@ const ChatWidget = () => {
         return [...prev, message];
       });
     };
-
+ 
     // Listen for typing indicator
     const handleTypingIndicator = (data) => {
-      if (data.conversationId === conversationId && data.isAdmin) {
+      if (String(data.conversationId) === String(conversationId) && data.isAdmin) {
         setIsTyping(data.isTyping);
       }
     };
-
+ 
     // Listen for messages marked as read
     const handleMessagesRead = (convId) => {
-      if (convId === conversationId) {
+      if (String(convId) === String(conversationId)) {
         setMessages((prev) =>
           prev.map((msg) => ({ ...msg, is_read: 1 }))
         );
       }
     };
-
+ 
     socket.on('chat:new-message', handleNewMessage);
     socket.on('chat:message-sent', handleMessageSent);
     socket.on('chat:typing', handleTypingIndicator);
     socket.on('chat:messages-read', handleMessagesRead);
-
-    // Mark messages as read when opening chat
+ 
+    // Mark messages as read when chat is open
     if (isOpen) {
       socket.emit('chat:mark-read', conversationId);
     }
-
+ 
     return () => {
       socket.off('chat:new-message', handleNewMessage);
       socket.off('chat:message-sent', handleMessageSent);
       socket.off('chat:typing', handleTypingIndicator);
       socket.off('chat:messages-read', handleMessagesRead);
     };
+  // FIX: Add isOpen to deps so the handler knows current open state
   }, [socket, conversationId, isOpen]);
-
+ 
   const loadConversation = async () => {
     try {
       setLoading(true);
@@ -117,10 +139,10 @@ const ChatWidget = () => {
       setLoading(false);
     }
   };
-
+ 
   const loadMessages = async () => {
     if (!conversationId) return;
-    
+ 
     try {
       setLoading(true);
       const response = await getChatMessages(conversationId);
@@ -131,49 +153,49 @@ const ChatWidget = () => {
       setLoading(false);
     }
   };
-
+ 
+  // FIX: When opening the chat, reset unread count and mark as read
+  const handleToggleOpen = () => {
+    const opening = !isOpen;
+    setIsOpen(opening);
+    if (opening) {
+      setUnreadCount(0);
+      if (socket && conversationId) {
+        socket.emit('chat:mark-read', conversationId);
+      }
+    }
+  };
+ 
   const handleSendMessage = async (e) => {
     e.preventDefault();
     console.log('🔵 handleSendMessage called');
-    console.log('🔵 newMessage:', newMessage);
-    console.log('🔵 conversationId:', conversationId);
-    console.log('🔵 sending:', sending);
-    console.log('🔵 socket:', socket);
-    
+ 
     if (!newMessage.trim() || !conversationId || sending || !socket) {
       console.log('❌ Validation failed - cannot send message');
       return;
     }
-
+ 
     try {
       setSending(true);
-      
-      // Get user info from token
+ 
       const token = localStorage.getItem('token');
       const payload = JSON.parse(atob(token.split('.')[1]));
-      
+ 
       const messageText = newMessage.trim();
-      
-      // 🎯 Optimistic UI: Add message immediately
+ 
+      // Optimistic UI: Add message immediately
       const tempMessage = {
         message_id: `temp_${Date.now()}`,
         message: messageText,
         sender_type: 'user',
         created_at: new Date().toISOString(),
         is_read: 0,
-        pending: true // Mark as pending
+        pending: true,
       };
-      
+ 
       setMessages(prev => [...prev, tempMessage]);
-      setNewMessage(''); // Clear input immediately
-      
-      console.log('✅ Emitting chat:send-message with:', {
-        conversationId,
-        message: messageText,
-        senderType: 'user',
-        senderId: payload.user_id
-      });
-      
+      setNewMessage('');
+ 
       // Send via socket with callback
       socket.emit('chat:send-message', {
         conversationId,
@@ -181,10 +203,9 @@ const ChatWidget = () => {
         senderType: 'user',
         senderId: payload.user_id
       }, (response) => {
-        // Callback từ server
         if (response.success) {
           console.log('✅ Message sent successfully:', response.data);
-          
+ 
           // Replace temp message with real message from server
           setMessages(prev =>
             prev.map(msg =>
@@ -193,8 +214,7 @@ const ChatWidget = () => {
                 : msg
             )
           );
-          
-          // Stop typing indicator
+ 
           socket.emit('chat:typing', { conversationId, isTyping: false });
         } else {
           console.error('❌ Error sending message:', response.error);
@@ -210,31 +230,28 @@ const ChatWidget = () => {
       setSending(false);
     }
   };
-
+ 
   const handleTyping = (e) => {
     setNewMessage(e.target.value);
-    
+ 
     if (!socket || !conversationId) return;
-    
-    // Clear existing timeout
+ 
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
-    
-    // Emit typing start
+ 
     socket.emit('chat:typing', { conversationId, isTyping: true });
-    
-    // Set timeout to emit typing stop
+ 
     typingTimeoutRef.current = setTimeout(() => {
       socket.emit('chat:typing', { conversationId, isTyping: false });
     }, 2000);
   };
-
+ 
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
     const now = new Date();
     const diffInHours = (now - date) / (1000 * 60 * 60);
-
+ 
     if (diffInHours < 24) {
       return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     } else {
@@ -242,15 +259,21 @@ const ChatWidget = () => {
              date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     }
   };
-
+ 
   return (
     <>
       {/* Chat Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggleOpen}
         className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-lg z-50 transition-transform hover:scale-110"
         aria-label="Chat với admin"
       >
+        {/* FIX: Show unread badge on collapsed button */}
+        {!isOpen && unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           className="h-6 w-6"
@@ -266,7 +289,7 @@ const ChatWidget = () => {
           />
         </svg>
       </button>
-
+ 
       {/* Chat Window */}
       {isOpen && (
         <div className="fixed bottom-24 right-6 w-96 h-[500px] bg-white rounded-lg shadow-2xl z-50 flex flex-col">
@@ -277,7 +300,7 @@ const ChatWidget = () => {
               <p className="text-xs text-blue-100">Chúng tôi thường trả lời trong vài phút</p>
             </div>
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={handleToggleOpen}
               className="hover:bg-blue-700 rounded-full p-1"
             >
               <svg
@@ -296,7 +319,7 @@ const ChatWidget = () => {
               </svg>
             </button>
           </div>
-
+ 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
             {loading && messages.length === 0 ? (
@@ -325,7 +348,7 @@ const ChatWidget = () => {
               <div className="space-y-3">
                 {messages.map((message) => (
                   <div
-                    key={message.id}
+                    key={message.message_id}
                     className={`flex ${message.sender_type === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
@@ -371,7 +394,7 @@ const ChatWidget = () => {
               </div>
             )}
           </div>
-
+ 
           {/* Input */}
           <form onSubmit={handleSendMessage} className="p-4 border-t bg-white rounded-b-lg">
             <div className="flex gap-2">
@@ -417,5 +440,6 @@ const ChatWidget = () => {
     </>
   );
 };
-
+ 
 export default ChatWidget;
+ 
