@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createAddress, createOrder, getCart, getAddresses } from '../services/api'; 
+import { createAddress, createOrder, getCart, getAddresses, createVNPayPaymentUrl } from '../services/api'; 
 import axios from 'axios';
 
 const Checkout = () => {
@@ -23,6 +23,7 @@ const Checkout = () => {
     const [appliedPromotion, setAppliedPromotion] = useState(null);
     const [error, setError] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false); 
+    const [paymentMethod, setPaymentMethod] = useState('cod'); 
   
     useEffect(() => {
         const initialFetch = async () => {
@@ -37,12 +38,13 @@ const Checkout = () => {
                 // Đọc selected items từ localStorage
                 const selectedFromStorage = localStorage.getItem('selectedCartItems');
                 if (selectedFromStorage) {
-                    setSelectedCartItems(new Set(JSON.parse(selectedFromStorage)));
-                    localStorage.removeItem('selectedCartItems'); // Xóa sau khi sử dụng
+                    const parsed = JSON.parse(selectedFromStorage);
+                    const numericIds = parsed.map(id => Number(id));
+                    setSelectedCartItems(new Set(numericIds));
                 } else {
                     // Nếu không có selected items, chọn tất cả
                     if (cartResponse.data?.items) {
-                        setSelectedCartItems(new Set(cartResponse.data.items.map(item => item.cart_item_id)));
+                        setSelectedCartItems(new Set(cartResponse.data.items.map(item => Number(item.cart_item_id))));
                     }
                 }
                 
@@ -150,6 +152,7 @@ const Checkout = () => {
                 address_id: addressIdToUse,
                 total_amount: subtotal, // Gửi giá gốc, backend sẽ tự apply promotion
                 promotion_code: appliedPromotion ? promotionCode : null,
+                payment_method: paymentMethod,
                 items: selectedItems.map((item) => ({
                     variant_id: item.variant_id,
                     quantity: item.quantity,
@@ -157,10 +160,24 @@ const Checkout = () => {
                 })),
             };
 
-            await createOrder(orderData);
+            const response = await createOrder(orderData);
             
-            alert('Đặt hàng thành công!');
-            navigate('/orders'); 
+            // Xóa danh sách sản phẩm đã thanh toán khỏi localStorage
+            localStorage.removeItem('selectedCartItems');
+            
+            if (paymentMethod === 'vnpay') {
+                const createdOrder = response.data;
+                // Gọi API lấy URL thanh toán VNPay
+                const vnpayRes = await createVNPayPaymentUrl(createdOrder.order_id, createdOrder.total_amount);
+                if (vnpayRes.data && vnpayRes.data.paymentUrl) {
+                    window.location.href = vnpayRes.data.paymentUrl;
+                } else {
+                    throw new Error('Không lấy được URL thanh toán VNPay');
+                }
+            } else {
+                alert('Đặt hàng thành công!');
+                navigate('/orders'); 
+            } 
 
         } catch (err) {
             console.error('Order error:', err.response?.data || err.message);
@@ -207,8 +224,28 @@ const Checkout = () => {
                             <div className="flex"><input type="text" className="w-full border rounded-l-md px-3 py-2" value={promotionCode} onChange={(e) => setPromotionCode(e.target.value)} /><button type="button" className="bg-gray-500 text-white px-4 py-2 rounded-r-md hover:bg-gray-600" onClick={handleApplyPromotion}>Áp dụng</button></div>
                         </div>
 
-                        <button type="submit" className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400" disabled={isSubmitting}>
-                            {isSubmitting ? 'Đang xử lý...' : 'Hoàn tất Đặt hàng'}
+                        <div className="mb-6">
+                            <label className="block text-gray-700 font-semibold mb-2">Phương thức thanh toán</label>
+                            <div className="grid grid-cols-2 gap-4">
+                                <label className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${paymentMethod === 'cod' ? 'border-blue-600 bg-blue-50/50 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}>
+                                    <input type="radio" name="paymentMethod" value="cod" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} className="mr-3 h-4 w-4 text-blue-600" />
+                                    <div>
+                                        <span className="font-semibold text-gray-900 block text-sm">Thanh toán khi nhận hàng</span>
+                                        <span className="text-gray-500 text-xs">COD</span>
+                                    </div>
+                                </label>
+                                <label className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${paymentMethod === 'vnpay' ? 'border-blue-600 bg-blue-50/50 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}>
+                                    <input type="radio" name="paymentMethod" value="vnpay" checked={paymentMethod === 'vnpay'} onChange={() => setPaymentMethod('vnpay')} className="mr-3 h-4 w-4 text-blue-600" />
+                                    <div>
+                                        <span className="font-semibold text-gray-900 block text-sm">Thanh toán qua VNPay</span>
+                                        <span className="text-gray-500 text-xs">Sandbox</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <button type="submit" className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 font-semibold" disabled={isSubmitting}>
+                            {isSubmitting ? 'Đang xử lý...' : paymentMethod === 'vnpay' ? 'Thanh toán VNPay' : 'Hoàn tất Đặt hàng'}
                         </button>
                     </form>
                 </div>

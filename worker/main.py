@@ -1,6 +1,7 @@
 import pymysql
 import redis
 import time
+import json
 
 # IMPORT CÁC THUẬT TOÁN VIẾT TAY CỦA BẠN
 from apriori import base_apriori
@@ -24,13 +25,38 @@ REDIS_CONFIG = {
     'decode_responses': True
 }
 
-# 🎯 CHỌN THUẬT TOÁN Ở ĐÂY ('fpgrowth' hoặc 'apriori')
-ACTIVE_ALGORITHM = 'fpgrowth'
+# 🎯 Đọc toàn bộ cấu hình AI từ MySQL
+def get_ai_settings():
+    print("🔍 Đang đọc toàn bộ cấu hình AI từ MySQL...")
+    settings = {
+        'active_algorithm': 'fpgrowth',
+        'min_support_count': 2,
+        'min_confidence': 0.05,
+        'max_recs_per_product': 5
+    }
+    try:
+        connection = pymysql.connect(**DB_CONFIG)
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT setting_key, setting_value FROM ai_settings")
+            rows = cursor.fetchall()
+            for row in rows:
+                key = row['setting_key']
+                val = row['setting_value']
+                if key == 'active_algorithm':
+                    settings[key] = val
+                elif key == 'min_support_count':
+                    settings[key] = int(val)
+                elif key == 'min_confidence':
+                    settings[key] = float(val)
+                elif key == 'max_recs_per_product':
+                    settings[key] = int(val)
+    except Exception as e:
+        print(f"⚠️ Lỗi đọc cấu hình từ DB, sử dụng các giá trị mặc định. Chi tiết: {e}")
+    finally:
+        if 'connection' in locals() and connection.open:
+            connection.close()
+    return settings
 
-# Thay vì dùng % (0.01), hàm của bạn dùng COUNT (số lượng).
-# Ta sẽ cấu hình số lượng đơn hàng tối thiểu có chứa sản phẩm để được coi là phổ biến.
-MIN_SUPPORT_COUNT = 2     # Tối thiểu 2 đơn hàng mua chung
-MIN_CONFIDENCE = 0.05    # Tỉ lệ mua kèm tối thiểu 5%
 
 # ==========================================
 # 2. LẤY DỮ LIỆU TỪ MYSQL
@@ -94,7 +120,7 @@ def generate_rules_from_frequent_itemsets(frequent_itemsets, min_confidence):
     rules.sort(key=lambda x: x['confidence'], reverse=True)
     return rules
 
-def build_recommendation_map(rules):
+def build_recommendation_map(rules, max_recs_per_product):
     print("⏳ [3/4] Đang xây dựng cấu trúc Map Gợi ý...")
     recom_map = {}
     for rule in rules:
@@ -103,7 +129,7 @@ def build_recommendation_map(rules):
             recom_map[prod_id] = []
             
         for c in rule['consequents']:
-            if c not in recom_map[prod_id] and len(recom_map[prod_id]) < 5:
+            if c not in recom_map[prod_id] and len(recom_map[prod_id]) < max_recs_per_product:
                 recom_map[prod_id].append(c)
     return recom_map
 
@@ -126,6 +152,7 @@ def save_to_redis(recom_map):
             count += 1
             
     print(f"🎉 HOÀN THÀNH! Đã nạp thành công {count} bộ gợi ý vào Redis.")
+
 def save_rules_to_mysql(rules):
     print("💾 Đang lưu chi tiết các Luật vào MySQL cho Admin Dashboard...")
     connection = pymysql.connect(**DB_CONFIG)
@@ -144,11 +171,44 @@ def save_rules_to_mysql(rules):
         print("✅ Đã lưu xong luật vào MySQL!")
     finally:
         connection.close()
+
+def save_mining_stats_to_mysql(algorithm, runtime, num_itemsets, num_rules):
+    print("💾 Đang lưu thống kê lượt chạy vào MySQL...")
+    connection = pymysql.connect(**DB_CONFIG)
+    try:
+        with connection.cursor() as cursor:
+            stats = {
+                'algorithm': algorithm,
+                'runtime': round(runtime, 4),
+                'num_itemsets': num_itemsets,
+                'num_rules': num_rules,
+                'timestamp': time.strftime("%Y-%m-%d %H:%M:%S")
+            }
+            stats_json = json.dumps(stats)
+            cursor.execute(
+                "UPDATE ai_settings SET setting_value = %s WHERE setting_key = 'last_mining_stats'",
+                (stats_json,)
+            )
+        connection.commit()
+        print("✅ Đã cập nhật thống kê vào MySQL!")
+    except Exception as e:
+        print(f"⚠️ Lỗi lưu thống kê: {e}")
+    finally:
+        connection.close()
+
 # ==========================================
 # CHƯƠNG TRÌNH CHÍNH
 # ==========================================
 if __name__ == "__main__":
+    # Đọc cấu hình động từ DB
+    settings = get_ai_settings()
+    ACTIVE_ALGORITHM = settings['active_algorithm']
+    MIN_SUPPORT_COUNT = settings['min_support_count']
+    MIN_CONFIDENCE = settings['min_confidence']
+    MAX_RECS_PER_PRODUCT = settings['max_recs_per_product']
+    
     print(f"\n{'='*50}\n🚀 HỆ THỐNG GỢI Ý ĐANG CHẠY (Thuật toán: {ACTIVE_ALGORITHM.upper()})\n{'='*50}")
+    print(f"   ⚙️ Cấu hình: Min Support Count = {MIN_SUPPORT_COUNT}, Min Confidence = {MIN_CONFIDENCE}, Max Recs = {MAX_RECS_PER_PRODUCT}")
     
     transactions = get_transactions()
     
@@ -167,13 +227,15 @@ if __name__ == "__main__":
         
         if not frequent_itemsets:
             print("⚠️ Không tìm thấy tập phổ biến nào. Hãy giảm MIN_SUPPORT_COUNT xuống (VD: 2 hoặc 3).")
+            # Cập nhật thống kê rỗng
+            save_mining_stats_to_mysql(ACTIVE_ALGORITHM, stats['runtime'], stats['num_frequent_itemsets'], 0)
         else:
             # 2. Sinh luật bằng tay
             rules = generate_rules_from_frequent_itemsets(frequent_itemsets, MIN_CONFIDENCE)
             print(f"✅ Đã sinh thành công {len(rules)} luật kết hợp (Association Rules).")
             
             # 3. Xây dựng Map và Lưu Redis
-            recommendations = build_recommendation_map(rules)
+            recommendations = build_recommendation_map(rules, MAX_RECS_PER_PRODUCT)
             
             if recommendations:
                 print("\n👉 In thử 3 luật gợi ý đầu tiên để kiểm tra:")
@@ -183,3 +245,6 @@ if __name__ == "__main__":
                 
                 save_to_redis(recommendations)
                 save_rules_to_mysql(rules)
+                
+            # Lưu thống kê thành công
+            save_mining_stats_to_mysql(ACTIVE_ALGORITHM, stats['runtime'], stats['num_frequent_itemsets'], len(rules))

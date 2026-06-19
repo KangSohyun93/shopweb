@@ -15,7 +15,6 @@ const RecommendationsSection = ({
                 <h2 className="text-2xl font-bold text-gray-800">
                     {fallbackMode ? 'Bạn có thể thích' : 'Khách hàng cũng mua'}
                 </h2>
-                <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded ml-2">Gợi ý bởi AI</span>
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">

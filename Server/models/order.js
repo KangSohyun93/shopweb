@@ -3,7 +3,7 @@ const Promotion = require('./promotion');
 
 const Order = {
     create: async (order) => {
-    const { user_id, address_id, total_amount, items, promotion_code } = order;
+    const { user_id, address_id, total_amount, items, promotion_code, payment_method } = order;
     let final_amount = total_amount;
     let promotion_id = null;
 
@@ -98,6 +98,15 @@ const Order = {
                 );
             } else {
                 console.warn(`No cart found for user_id ${user_id}`);
+            }
+
+            // Insert into payments for COD orders
+            if (!payment_method || payment_method === 'cod') {
+                await connection.query(
+                    `INSERT INTO payments (order_id, amount, method, status)
+                     VALUES (?, ?, 'cod', 'pending')`,
+                    [orderId, final_amount]
+                );
             }
 
             await connection.commit();

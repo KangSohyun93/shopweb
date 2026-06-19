@@ -23,6 +23,7 @@ const adminUserRoutes = require('./routes/adminUserRoutes');
 const recommendationRoutes = require('./routes/recommendationRoutes');
 const aiRuleRoutes = require('./routes/aiRuleRoutes');
 const trackingRoutes = require('./routes/trackingRoutes');
+const vnpayRoutes = require('./routes/vnpayRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -55,6 +56,7 @@ app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/ai-rules', aiRuleRoutes);
 app.use('/api/tracking', trackingRoutes);
+app.use('/api/vnpay', vnpayRoutes);
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to ShopWeb API' });

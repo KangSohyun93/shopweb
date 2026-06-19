@@ -47,17 +47,28 @@ const CartPage = () => {
         fetchCart();
     }, []);
 
+    const cartProductIdsStr = cart && cart.items 
+        ? cart.items.map(item => item.product_id).sort().join(',') 
+        : '';
+
+    // Reset recommendations when the cart items change
+    useEffect(() => {
+        setRecommendations([]);
+        setRecPage(1);
+        setRecHasMore(true);
+    }, [cartProductIdsStr]);
+
     // 📖 FETCH RECOMMENDATIONS (Infinite Scroll)
     useEffect(() => {
         const fetchRecommendations = async () => {
-            if (!recHasMore) return;
+            if (!recHasMore || loading) return;
             
             setRecIsLoadingMore(true);
             try {
                 const token = localStorage.getItem('token');
                 
                 const res = await axios.get(
-                    `http://localhost:5000/api/recommendations/homepage?page=${recPage}&limit=10`,
+                    `http://localhost:5000/api/recommendations/cart?product_ids=${cartProductIdsStr}&page=${recPage}&limit=10`,
                     {
                         headers: {
                             ...(token && { Authorization: `Bearer ${token}` })
@@ -82,10 +93,10 @@ const CartPage = () => {
             }
         };
 
-        if (recPage > 1 || recommendations.length === 0) {
+        if (!loading && (recPage > 1 || recommendations.length === 0)) {
             fetchRecommendations();
         }
-    }, [recPage, recHasMore]);
+    }, [recPage, recHasMore, cartProductIdsStr, loading]);
 
     const handleUpdateQuantity = async (cartItemId, newQuantity) => {
         if (newQuantity < 1) return;

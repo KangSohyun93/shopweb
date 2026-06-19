@@ -25,6 +25,7 @@ import AdminBannersPage from './pages/admin/AdminBannersPage';
 import AdminChatPage from './pages/admin/AdminChatPage';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
 import AIRulesDashboard from './pages/admin/AIRulesDashboard';
+import VNPayReturnPage from './pages/customer/VNPayReturnPage';
 
 import './App.css';
 
@@ -49,6 +50,7 @@ function App() {
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/orders/:id" element={<OrderDetailPage />} />
             <Route path="/search" element={<SearchResultsPage />} />
+            <Route path="/payment/vnpay-return" element={<VNPayReturnPage />} />
           </Route>
 
           <Route element={<AdminLayout />}>

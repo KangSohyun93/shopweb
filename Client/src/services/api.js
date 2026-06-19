@@ -80,6 +80,7 @@ export const getAddresses = addressService.getAddresses;
 export const deleteAddress = addressService.deleteAddress;
 
 export const createOrder = orderService.createOrder;
+export const createVNPayPaymentUrl = (orderId, amount) => api.post('/vnpay/create-payment', { order_id: orderId, amount });
 export const getOrders = orderService.getOrders;
 export const cancelOrder = orderService.cancelOrder;
 export const getAllAdminOrders = orderService.getAllAdminOrders;

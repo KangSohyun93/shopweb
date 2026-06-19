@@ -5,6 +5,9 @@ const recommendationController = require('../controllers/recommendationControlle
 // Route: GET /api/recommendations/homepage (Phải đặt trước :product_id để tránh nhầm lẫn)
 router.get('/homepage', recommendationController.getHomepageRecommendations);
 
+// Route: GET /api/recommendations/cart (Quản lý gợi ý giỏ hàng)
+router.get('/cart', recommendationController.getCartRecommendations);
+
 // Route: GET /api/recommendations/product/:product_id (ProductDetail recommendations)
 router.get('/product/:product_id', recommendationController.getRecommendations);
 

@@ -5,7 +5,9 @@ const Product = {
     const [rows] = await pool.query(`
       SELECT p.product_id, p.name, p.description, p.category_id, p.brand_id, p.primary_image_url,
              c.name as category_name, b.name as brand_name,
-             pv.variant_id, pv.sku, pv.color, pv.size, pv.price, pv.stock_quantity, pv.weight
+             pv.variant_id, pv.sku, pv.color, pv.size, pv.price, pv.stock_quantity, pv.weight,
+             COALESCE((SELECT AVG(rating) FROM reviews r WHERE r.product_id = p.product_id), 0) as avg_rating,
+             COALESCE((SELECT SUM(oi.quantity) FROM order_items oi JOIN product_variants pv2 ON oi.variant_id = pv2.variant_id WHERE pv2.product_id = p.product_id), 0) as sold_count
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.category_id
       LEFT JOIN brands b ON p.brand_id = b.brand_id
@@ -25,6 +27,8 @@ const Product = {
           primary_image_url: row.primary_image_url,
           category_name: row.category_name,
           brand_name: row.brand_name,
+          avg_rating: row.avg_rating,
+          sold_count: row.sold_count,
           additional_images: [],
           variants: []
         };
@@ -68,7 +72,9 @@ const Product = {
     const [rows] = await pool.query(`
       SELECT p.product_id, p.name, p.description, p.category_id, p.brand_id, p.primary_image_url,
              c.name as category_name, b.name as brand_name,
-             pv.variant_id, pv.sku, pv.color, pv.size, pv.price, pv.stock_quantity, pv.weight
+             pv.variant_id, pv.sku, pv.color, pv.size, pv.price, pv.stock_quantity, pv.weight,
+             COALESCE((SELECT AVG(rating) FROM reviews r WHERE r.product_id = p.product_id), 0) as avg_rating,
+             COALESCE((SELECT SUM(oi.quantity) FROM order_items oi JOIN product_variants pv2 ON oi.variant_id = pv2.variant_id WHERE pv2.product_id = p.product_id), 0) as sold_count
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.category_id
       LEFT JOIN brands b ON p.brand_id = b.brand_id
@@ -86,6 +92,8 @@ const Product = {
       primary_image_url: rows[0].primary_image_url,
       category_name: rows[0].category_name,
       brand_name: rows[0].brand_name,
+      avg_rating: rows[0].avg_rating,
+      sold_count: rows[0].sold_count,
       additional_images: [],
       variants: []
     };
@@ -180,7 +188,9 @@ searchByName: async (query) => {
         p.product_id, p.name, p.description, p.primary_image_url,
         c.name as category_name,
         b.name as brand_name,
-        pv.variant_id, pv.sku, pv.color, pv.size, pv.price, pv.stock_quantity, pv.weight
+        pv.variant_id, pv.sku, pv.color, pv.size, pv.price, pv.stock_quantity, pv.weight,
+        COALESCE((SELECT AVG(rating) FROM reviews r WHERE r.product_id = p.product_id), 0) as avg_rating,
+        COALESCE((SELECT SUM(oi.quantity) FROM order_items oi JOIN product_variants pv2 ON oi.variant_id = pv2.variant_id WHERE pv2.product_id = p.product_id), 0) as sold_count
      FROM products p
      LEFT JOIN categories c ON p.category_id = c.category_id
      LEFT JOIN brands b ON p.brand_id = b.brand_id
@@ -210,6 +220,8 @@ searchByName: async (query) => {
         category_name: row.category_name,
         brand_name: row.brand_name,
         price: row.price || 0,
+        avg_rating: row.avg_rating,
+        sold_count: row.sold_count,
         variants: []
       };
     }

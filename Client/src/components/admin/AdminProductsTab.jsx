@@ -44,7 +44,7 @@ const EditRow = ({
 
   return (
     <tr>
-      <td colSpan={11} className="p-0">
+      <td colSpan={12} className="p-0">
         <div className="m-3 rounded-xl border border-blue-200 bg-blue-50 shadow-lg">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-blue-200">
@@ -233,6 +233,22 @@ const EditRow = ({
   );
 };
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const getTotalStock = (variants) => {
+  if (!variants || variants.length === 0) return 0;
+  return variants.reduce((sum, v) => sum + (parseInt(v.stock_quantity) || 0), 0);
+};
+
+const getPriceRange = (variants) => {
+  if (!variants || variants.length === 0) return '0';
+  const prices = variants.map(v => parseFloat(v.price) || 0).filter(p => p > 0);
+  if (prices.length === 0) return '0';
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  if (min === max) return min.toLocaleString('vi-VN');
+  return `${min.toLocaleString('vi-VN')} – ${max.toLocaleString('vi-VN')}`;
+};
+
 // ─── Main component ────────────────────────────────────────────────────────────
 const AdminProductsTab = () => {
   const [products, setProducts] = useState([]);
@@ -250,6 +266,11 @@ const AdminProductsTab = () => {
 
   const [editMode, setEditMode] = useState(null);
   const [editedItems, setEditedItems] = useState({});
+  const [expandedRows, setExpandedRows] = useState({});
+
+  const toggleMobileExpand = (id) => {
+    setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // ─── Fetch ────────────────────────────────────────────────────────────────
   useEffect(() => { fetchProducts(); }, []);
@@ -518,11 +539,11 @@ const AdminProductsTab = () => {
       )}
 
       {/* ── Data Table ── */}
-      <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
-        <table className="w-full text-sm border-collapse">
+      <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
+        <table className="w-full text-sm border-collapse text-left">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="px-3 py-3 text-center w-10">
+              <th className="px-3 py-3 text-center w-10 hidden md:table-cell">
                 <input
                   type="checkbox"
                   checked={allPageSelected}
@@ -532,21 +553,22 @@ const AdminProductsTab = () => {
                 />
               </th>
               <th className="px-3 py-3 text-left font-semibold text-gray-600 min-w-[200px]">Sản phẩm</th>
-              <th className="px-3 py-3 text-left font-semibold text-gray-600 min-w-[110px]">Danh mục</th>
-              <th className="px-3 py-3 text-left font-semibold text-gray-600 min-w-[110px]">Thương hiệu</th>
-              <th className="px-3 py-3 text-left font-semibold text-gray-600 w-28">Mã SKU</th>
-              <th className="px-3 py-3 text-left font-semibold text-gray-600 w-24">Màu sắc</th>
-              <th className="px-3 py-3 text-left font-semibold text-gray-600 w-20">Cỡ</th>
-              <th className="px-3 py-3 text-right font-semibold text-gray-600 w-32">Giá (VND)</th>
-              <th className="px-3 py-3 text-right font-semibold text-gray-600 w-20">Kho</th>
-              <th className="px-3 py-3 text-right font-semibold text-gray-600 w-24">KL (g)</th>
-              <th className="px-3 py-3 text-center font-semibold text-gray-600 w-24">Thao tác</th>
+              <th className="px-3 py-3 text-left font-semibold text-gray-600 min-w-[110px] hidden md:table-cell">Danh mục</th>
+              <th className="px-3 py-3 text-left font-semibold text-gray-600 min-w-[110px] hidden md:table-cell">Thương hiệu</th>
+              <th className="px-3 py-3 text-left font-semibold text-gray-600 w-28 hidden md:table-cell">Mã SKU</th>
+              <th className="px-3 py-3 text-left font-semibold text-gray-600 w-24 hidden md:table-cell">Màu sắc</th>
+              <th className="px-3 py-3 text-left font-semibold text-gray-600 w-20 hidden md:table-cell">Cỡ</th>
+              <th className="px-3 py-3 text-right font-semibold text-gray-600 w-32 hidden md:table-cell">Giá (VND)</th>
+              <th className="px-3 py-3 text-right font-semibold text-gray-600 w-20 hidden md:table-cell">Kho</th>
+              <th className="px-3 py-3 text-right font-semibold text-gray-600 w-24 hidden md:table-cell">KL (g)</th>
+              <th className="px-3 py-3 text-center font-semibold text-gray-600 w-24 hidden md:table-cell">Thao tác</th>
+              <th className="px-3 py-3 text-center font-semibold text-gray-600 w-16 md:hidden">Xem</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {currentProducts.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-6 py-12 text-center text-gray-400">
+                <td colSpan={12} className="px-6 py-12 text-center text-gray-400">
                   Không có sản phẩm nào
                 </td>
               </tr>
@@ -582,14 +604,14 @@ const AdminProductsTab = () => {
                   )}
 
                   {/* Data rows – one per variant */}
-                  {(variants.length > 0 ? variants : [null]).map((variant, vIdx) => (
-                    <tr key={vIdx} className={`${rowBg} transition-colors`}>
+                  {!isEditing && (variants.length > 0 ? variants : [null]).map((variant, vIdx) => (
+                    <tr key={vIdx} className={`${rowBg} transition-colors ${vIdx > 0 ? 'hidden md:table-row' : ''}`}>
 
                       {/* ── Shared cells (rowSpan) ── */}
                       {vIdx === 0 && (
                         <>
                           {/* Checkbox */}
-                          <td rowSpan={rowCount} className="px-3 py-3 text-center align-middle border-r border-gray-100">
+                          <td rowSpan={rowCount} className="px-3 py-3 text-center align-middle border-r border-gray-100 hidden md:table-cell">
                             <input
                               type="checkbox"
                               checked={isSelected}
@@ -622,21 +644,26 @@ const AdminProductsTab = () => {
                                   {product.name || <span className="text-gray-400 italic">Chưa đặt tên</span>}
                                 </p>
                                 {variants.length > 1 && (
-                                  <p className="text-xs text-gray-400 mt-0.5">{variants.length} biến thể</p>
+                                  <p className="text-xs text-gray-400 mt-0.5 hidden md:block">{variants.length} biến thể</p>
                                 )}
+                                {/* Mobile range details */}
+                                <div className="md:hidden mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                                  <span className="text-gray-500 font-medium">Giá: <strong className="text-blue-600 font-semibold">{getPriceRange(product.variants)} đ</strong></span>
+                                  <span className="text-gray-500 font-medium">Kho: <strong className="text-green-600 font-semibold">{getTotalStock(product.variants)}</strong></span>
+                                </div>
                               </div>
                             </div>
                           </td>
 
                           {/* Danh mục */}
-                          <td rowSpan={rowCount} className="px-3 py-3 align-middle border-r border-gray-100">
+                          <td rowSpan={rowCount} className="px-3 py-3 align-middle border-r border-gray-100 hidden md:table-cell">
                             <span className="inline-block text-xs bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded-full font-medium">
                               {categoryName}
                             </span>
                           </td>
 
                           {/* Thương hiệu */}
-                          <td rowSpan={rowCount} className="px-3 py-3 align-middle border-r border-gray-100">
+                          <td rowSpan={rowCount} className="px-3 py-3 align-middle border-r border-gray-100 hidden md:table-cell">
                             <span className="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
                               {brandName}
                             </span>
@@ -647,10 +674,10 @@ const AdminProductsTab = () => {
                       {/* ── Per-variant cells ── */}
                       {variant ? (
                         <>
-                          <td className="px-3 py-2.5 align-middle border-r border-gray-100">
+                          <td className="px-3 py-2.5 align-middle border-r border-gray-100 hidden md:table-cell">
                             <span className="font-mono text-xs text-gray-600">{variant.sku || '—'}</span>
                           </td>
-                          <td className="px-3 py-2.5 align-middle border-r border-gray-100">
+                          <td className="px-3 py-2.5 align-middle border-r border-gray-100 hidden md:table-cell">
                             <span className="inline-flex items-center gap-1.5">
                               <ColorDot color={variant.color} />
                               <span className="text-xs text-gray-600">
@@ -658,47 +685,141 @@ const AdminProductsTab = () => {
                               </span>
                             </span>
                           </td>
-                          <td className="px-3 py-2.5 align-middle border-r border-gray-100 text-xs text-gray-700">
+                          <td className="px-3 py-2.5 align-middle border-r border-gray-100 text-xs text-gray-700 hidden md:table-cell">
                             {variant.size || '—'}
                           </td>
-                          <td className="px-3 py-2.5 align-middle border-r border-gray-100 text-right text-blue-600 font-medium text-xs">
+                          <td className="px-3 py-2.5 align-middle border-r border-gray-100 text-right text-blue-600 font-medium text-xs hidden md:table-cell">
                             {parseFloat(variant.price || 0).toLocaleString('vi-VN')}
                           </td>
-                          <td className="px-3 py-2.5 align-middle border-r border-gray-100 text-right text-xs">
+                          <td className="px-3 py-2.5 align-middle border-r border-gray-100 text-right text-xs hidden md:table-cell">
                             <StockBadge qty={variant.stock_quantity} />
                           </td>
-                          <td className="px-3 py-2.5 align-middle border-r border-gray-100 text-right text-xs text-gray-500">
+                          <td className="px-3 py-2.5 align-middle border-r border-gray-100 text-right text-xs text-gray-500 hidden md:table-cell">
                             {variant.weight != null && variant.weight !== '' ? variant.weight : '—'}
                           </td>
                         </>
                       ) : (
-                        <td colSpan={6} className="px-3 py-2.5 align-middle border-r border-gray-100 text-xs text-gray-400 italic">
+                        <td colSpan={6} className="px-3 py-2.5 align-middle border-r border-gray-100 text-xs text-gray-400 italic hidden md:table-cell">
                           Chưa có biến thể
                         </td>
                       )}
 
                       {/* ── Actions (first row only) ── */}
                       {vIdx === 0 && (
-                        <td rowSpan={rowCount} className="px-3 py-3 align-middle text-center">
-                          <div className="flex flex-col gap-1.5 items-center">
+                        <>
+                          <td rowSpan={rowCount} className="px-3 py-3 align-middle text-center hidden md:table-cell">
+                            <div className="flex flex-col gap-1.5 items-center">
+                              <button
+                                onClick={() => handleEdit(product)}
+                                disabled={isEditing}
+                                className="w-full px-2 py-1.5 bg-blue-500 text-white rounded-lg text-xs hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+                              >
+                                ✏️ Sửa
+                              </button>
+                              <button
+                                onClick={() => handleDeleteProduct(product.product_id)}
+                                className="w-full px-2 py-1.5 bg-red-500 text-white rounded-lg text-xs hover:bg-red-600 font-medium"
+                              >
+                                🗑️ Xóa
+                              </button>
+                            </div>
+                          </td>
+
+                          {/* Mobile toggle button */}
+                          <td rowSpan={rowCount} className="px-3 py-3 align-middle text-center md:hidden">
                             <button
-                              onClick={() => handleEdit(product)}
-                              disabled={isEditing}
-                              className="w-full px-2 py-1.5 bg-blue-500 text-white rounded-lg text-xs hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+                              onClick={() => toggleMobileExpand(product.product_id)}
+                              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                              title="Xem chi tiết biến thể"
                             >
-                              ✏️ Sửa
+                              {expandedRows[product.product_id] ? (
+                                <svg className="w-5 h-5 transform rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                </svg>
+                              ) : (
+                                <svg className="w-5 h-5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              )}
                             </button>
-                            <button
-                              onClick={() => handleDeleteProduct(product.product_id)}
-                              className="w-full px-2 py-1.5 bg-red-500 text-white rounded-lg text-xs hover:bg-red-600 font-medium"
-                            >
-                              🗑️ Xóa
-                            </button>
-                          </div>
-                        </td>
+                          </td>
+                        </>
                       )}
                     </tr>
                   ))}
+
+                  {/* Mobile details collapse panel */}
+                  {!isEditing && expandedRows[product.product_id] && (
+                    <tr className="md:hidden bg-gray-50/70 border-b border-gray-200">
+                      <td colSpan={12} className="p-4">
+                        <div className="space-y-4">
+                          {/* Phân loại summary */}
+                          <div className="grid grid-cols-2 gap-3 bg-white p-3 rounded-lg border border-gray-150 text-xs">
+                            <div>
+                              <span className="font-semibold text-gray-500 block mb-0.5">Danh mục</span>
+                              <span className="inline-block text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded font-medium">
+                                {categoryName}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-semibold text-gray-500 block mb-0.5">Thương hiệu</span>
+                              <span className="inline-block text-gray-600 bg-gray-100 px-2.5 py-1 rounded font-medium">
+                                {brandName}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Variants list */}
+                          <div className="space-y-2">
+                            <span className="text-xs font-bold text-gray-700 block">Danh sách biến thể ({variants.length})</span>
+                            {variants.length > 0 && variants[0] ? (
+                              <div className="divide-y divide-gray-150 bg-white rounded-lg border border-gray-150 overflow-hidden shadow-sm">
+                                {variants.map((v, idx) => (
+                                  <div key={idx} className="p-3 hover:bg-gray-50 transition-colors">
+                                    <div className="flex justify-between items-center mb-1">
+                                      <span className="font-mono text-xs font-bold text-gray-700">SKU: {v.sku || '—'}</span>
+                                      <span className="text-sm font-bold text-blue-600">{parseFloat(v.price || 0).toLocaleString('vi-VN')} đ</span>
+                                    </div>
+                                    <div className="flex justify-between text-xs text-gray-500">
+                                      <span className="flex items-center gap-1.5">
+                                        Màu: <ColorDot color={v.color} /> {v.color && v.color !== 'default' ? v.color : '—'}
+                                        <span className="text-gray-300">|</span> 
+                                        Cỡ: {v.size || '—'}
+                                      </span>
+                                      <span>
+                                        Kho: <StockBadge qty={v.stock_quantity} />
+                                      </span>
+                                    </div>
+                                    {v.weight != null && v.weight !== '' && (
+                                      <div className="text-[10px] text-gray-400 mt-1">Cân nặng: {v.weight}g</div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-gray-400 italic">Chưa có biến thể</p>
+                            )}
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex gap-2 justify-end pt-2 border-t border-gray-150">
+                            <button
+                              onClick={() => handleEdit(product)}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700 font-bold shadow-sm flex items-center gap-1"
+                            >
+                              ✏️ Chỉnh sửa
+                            </button>
+                            <button
+                              onClick={() => handleDeleteProduct(product.product_id)}
+                              className="px-4 py-2 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700 font-bold shadow-sm flex items-center gap-1"
+                            >
+                              🗑️ Xóa sản phẩm
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                 </React.Fragment>
               );
             })}

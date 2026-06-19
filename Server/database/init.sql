@@ -189,7 +189,7 @@ CREATE TABLE IF NOT EXISTS payments (
     payment_id INT PRIMARY KEY AUTO_INCREMENT,
     order_id INT,
     amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
-    method ENUM('cod', 'credit_card', 'paypal', 'bank_transfer') NOT NULL,
+    method ENUM('cod', 'credit_card', 'paypal', 'bank_transfer', 'vnpay') NOT NULL,
     status ENUM('pending', 'completed', 'failed') DEFAULT 'pending',
     transaction_id VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -300,3 +300,24 @@ SELECT
 FROM users u
 LEFT JOIN user_interactions ui ON u.user_id = ui.user_id
 GROUP BY u.user_id, u.username;
+
+-- ==========================================
+-- 6. CẤU HÌNH THUẬT TOÁN AI
+-- ==========================================
+CREATE TABLE IF NOT EXISTS ai_settings (
+    setting_key VARCHAR(100) PRIMARY KEY,
+    setting_value VARCHAR(255) NOT NULL,
+    description VARCHAR(255) NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO ai_settings (setting_key, setting_value, description)
+VALUES 
+('active_algorithm', 'fpgrowth', 'Thuật toán khai thác luật kết hợp đang hoạt động: fpgrowth hoặc apriori'),
+('recommendation_method', 'hybrid', 'Phương thức gợi ý sản phẩm trang chủ/giỏ hàng: hybrid (Cá nhân hóa + Xu hướng) hoặc trending (Chỉ sản phẩm xu hướng)'),
+('homepage_use_trending', 'true', 'Trang chủ: Sử dụng sản phẩm bán chạy làm fallback'),
+('product_use_item_redis', 'true', 'Chi tiết SP: Sử dụng luật mua kèm (Association Rules) của sản phẩm đang xem'),
+('product_use_trending', 'true', 'Chi tiết SP: Sử dụng sản phẩm bán chạy làm fallback'),
+('cart_use_redis', 'true', 'Giỏ hàng: Sử dụng luật mua kèm (Association Rules) từ các sản phẩm trong giỏ'),
+('cart_use_trending', 'true', 'Giỏ hàng: Sử dụng sản phẩm bán chạy làm fallback'),
+('last_mining_stats', '{"algorithm": "none", "runtime": 0, "num_rules": 0, "num_itemsets": 0, "timestamp": ""}', 'Thống kê lượt chạy thuật toán khai thác gần nhất');

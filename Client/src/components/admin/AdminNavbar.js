@@ -26,7 +26,7 @@ const AdminNavbar = () => {
                                 <NavLink to="/admin/users" className={linkClass}>Người dùng</NavLink>
                                 <NavLink to="/admin/banners" className={linkClass}>Banner</NavLink>
                                 <NavLink to="/admin/chat" className={linkClass}>Chat</NavLink>
-                                <NavLink to="/admin/ai-rules" className={linkClass}>🤖 Thống Kê AI</NavLink>
+                                <NavLink to="/admin/ai-rules" className={linkClass}>🤖 Cấu hình AI</NavLink>
                             </div>
                         </div>
                     </div>
