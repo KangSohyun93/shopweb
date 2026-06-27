@@ -164,9 +164,16 @@ exports.vnpayIPN = async (req, res) => {
         const orderId = parseInt(txnRef?.split('_')[0]);
 
         // Kiểm tra đơn hàng tồn tại
-        const [orders] = await db.query('SELECT order_id FROM orders WHERE order_id = ?', [orderId]);
+        const [orders] = await db.query('SELECT order_id, total_amount FROM orders WHERE order_id = ?', [orderId]);
         if (!orders.length) {
             return res.json({ RspCode: '01', Message: 'Order not found' });
+        }
+
+        // Kiểm tra số tiền thanh toán (Quy đổi 1 USD = 25000 VND, nhân 100 theo xu thế VNPay)
+        const expectedAmountVNDCent = Math.round(parseFloat(orders[0].total_amount) * 25000) * 100;
+        const vnpAmount = parseInt(params['vnp_Amount'], 10);
+        if (vnpAmount !== expectedAmountVNDCent) {
+            return res.json({ RspCode: '04', Message: 'Invalid Amount' });
         }
 
         // Kiểm tra đã xử lý chưa (tránh duplicate)
