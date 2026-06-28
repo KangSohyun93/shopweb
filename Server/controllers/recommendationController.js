@@ -31,22 +31,43 @@ const getCartProductIds = async (user_id) => {
     }
 };
 
-// 🔴 Tra Redis recom:<product_id> cho nhiều sản phẩm, gộp lại và loại trùng
+// 🔴 Tra Redis recom:<product_id> cho nhiều sản phẩm. Nếu Redis lỗi hoặc trống, tự động fallback truy vấn từ MySQL bảng ai_rules
 const getRedisRecsForProducts = async (productIds, excludeIds = []) => {
     let allRecs = [];
     for (const pid of productIds) {
+        let recommendedIdsStr = [];
+        let redisSuccess = false;
         try {
-            const recommendedIdsStr = await redisClient.lRange(`recom:${pid}`, 0, -1);
-            if (recommendedIdsStr && recommendedIdsStr.length > 0) {
-                recommendedIdsStr.forEach(id => {
-                    const parsedId = parseInt(id, 10);
-                    if (!allRecs.includes(parsedId) && !excludeIds.includes(parsedId)) {
-                        allRecs.push(parsedId);
-                    }
-                });
-            }
+            recommendedIdsStr = await redisClient.lRange(`recom:${pid}`, 0, -1);
+            redisSuccess = true;
         } catch (redisErr) {
             console.error(`⚠️ Lỗi đọc Redis cho sản phẩm ${pid}:`, redisErr.message);
+        }
+
+        // Nếu Redis bị lỗi hoặc không có dữ liệu cache, thực hiện fallback đọc từ MySQL
+        if (!redisSuccess || !recommendedIdsStr || recommendedIdsStr.length === 0) {
+            try {
+                // Truy vấn luật kết hợp trực tiếp từ bảng ai_rules
+                const [dbRules] = await db.query(
+                    `SELECT consequent_id FROM ai_rules WHERE antecedent_id = ? ORDER BY confidence DESC`,
+                    [pid]
+                );
+                if (dbRules && dbRules.length > 0) {
+                    recommendedIdsStr = dbRules.map(row => row.consequent_id.toString());
+                    console.log(`ℹ️ Fallback thành công: Đã lấy ${recommendedIdsStr.length} gợi ý từ MySQL cho sản phẩm ${pid}`);
+                }
+            } catch (dbErr) {
+                console.error(`⚠️ Lỗi fallback đọc MySQL cho sản phẩm ${pid}:`, dbErr.message);
+            }
+        }
+
+        if (recommendedIdsStr && recommendedIdsStr.length > 0) {
+            recommendedIdsStr.forEach(id => {
+                const parsedId = parseInt(id, 10);
+                if (!allRecs.includes(parsedId) && !excludeIds.includes(parsedId)) {
+                    allRecs.push(parsedId);
+                }
+            });
         }
     }
     return allRecs;

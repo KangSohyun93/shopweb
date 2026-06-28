@@ -7,20 +7,51 @@ import json
 from apriori import base_apriori
 from fpgrowth import fp_growth
 
+import os
+
 # ==========================================
-# 1. CẤU HÌNH HỆ THỐNG
+# 1. CẤU HÌNH HỆ THỐNG (ĐỌC ĐỘNG TỪ SERVER/.ENV)
 # ==========================================
+def load_env(env_path):
+    env_vars = {}
+    if os.path.exists(env_path):
+        try:
+            with open(env_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    if '=' in line:
+                        k, v = line.split('=', 1)
+                        # Loại bỏ dấu ngoặc đơn hoặc ngoặc kép bao quanh nếu có
+                        v_val = v.strip().strip("'").strip('"')
+                        env_vars[k.strip()] = v_val
+        except Exception as e:
+            print(f"⚠️ Không thể đọc file .env: {e}")
+    return env_vars
+
+# Xác định đường dẫn tới file .env của Server
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+env_file_path = os.path.join(base_dir, 'Server', '.env')
+env_config = load_env(env_file_path)
+
+if env_config:
+    print(f"✅ Đã tải cấu hình kết nối từ: Server/.env")
+else:
+    print(f"⚠️ Không tìm thấy Server/.env, sử dụng cấu hình mặc định.")
+
 DB_CONFIG = {
-    'host': '127.0.0.1',
-    'user': 'root',
-    'password': 'Sohyun280697.',
-    'database': 'shopweb',
+    'host': env_config.get('DB_HOST', '127.0.0.1'),
+    'user': env_config.get('DB_USER', 'root'),
+    'password': env_config.get('DB_PASSWORD', 'Sohyun280697.'),
+    'database': env_config.get('DB_NAME', 'shopweb'),
+    'port': int(env_config.get('DB_PORT', 3306)),
     'cursorclass': pymysql.cursors.DictCursor
 }
 
 REDIS_CONFIG = {
-    'host': '127.0.0.1',
-    'port': 6379,
+    'host': env_config.get('REDIS_HOST', '127.0.0.1'),
+    'port': int(env_config.get('REDIS_PORT', 6379)),
     'db': 0,
     'decode_responses': True
 }

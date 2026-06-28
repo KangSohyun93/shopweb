@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import { getOrderDetails, cancelOrder, createReview, updateReview, getUserReview, checkCanReturn, requestReturn } from '../../services/api'; 
 import ReviewModal from '../../components/ReviewModal'; 
 
@@ -104,17 +105,37 @@ const OrderDetailPage = () => {
     }, [id, fetchOrder]);
     
     const handleCancelOrder = async () => {
-        if (!window.confirm('Bạn có chắc chắn muốn hủy đơn hàng này không? Thao tác này không thể hoàn tác.')) {
-            return;
-        }
+        const confirmResult = await Swal.fire({
+            title: 'Xác nhận hủy đơn',
+            text: 'Bạn có chắc chắn muốn hủy đơn hàng này không? Thao tác này không thể hoàn tác.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#aaa',
+            confirmButtonText: 'Hủy đơn hàng',
+            cancelButtonText: 'Đóng'
+        });
+        if (!confirmResult.isConfirmed) return;
+
         setIsCancelling(true);
         setError(null);
         try {
             const response = await cancelOrder(order.order_id);
-            alert('Đã hủy đơn hàng thành công!');
+            Swal.fire({
+                title: 'Thành công',
+                text: 'Đã hủy đơn hàng thành công!',
+                icon: 'success',
+                confirmButtonColor: '#3085d6'
+            });
             setOrder(response.data); 
         } catch (err) {
             setError(err.response?.data?.error || 'Không thể hủy đơn hàng. Vui lòng thử lại.');
+            Swal.fire({
+                title: 'Thất bại',
+                text: err.response?.data?.error || 'Không thể hủy đơn hàng. Vui lòng thử lại.',
+                icon: 'error',
+                confirmButtonColor: '#d33'
+            });
         } finally {
             setIsCancelling(false);
         }
@@ -145,23 +166,54 @@ const OrderDetailPage = () => {
     };
 
     const handleRequestReturn = async () => {
-        const reason = prompt('Vui lòng nhập lý do yêu cầu trả hàng:');
-        if (!reason || reason.trim() === '') {
-            alert('Vui lòng nhập lý do trả hàng');
-            return;
-        }
+        const { value: reason } = await Swal.fire({
+            title: 'Yêu cầu trả hàng',
+            input: 'text',
+            inputLabel: 'Vui lòng nhập lý do yêu cầu trả hàng:',
+            inputPlaceholder: 'Nhập lý do tại đây...',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#aaa',
+            confirmButtonText: 'Gửi yêu cầu',
+            cancelButtonText: 'Hủy',
+            inputValidator: (value) => {
+                if (!value || value.trim() === '') {
+                    return 'Lý do trả hàng không được để trống!';
+                }
+            }
+        });
 
-        if (!window.confirm('Bạn có chắc chắn muốn yêu cầu trả hàng?')) {
-            return;
-        }
+        if (!reason) return;
+
+        const confirmResult = await Swal.fire({
+            title: 'Xác nhận gửi yêu cầu',
+            text: 'Bạn có chắc chắn muốn gửi yêu cầu trả hàng cho đơn hàng này?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#aaa',
+            confirmButtonText: 'Xác nhận',
+            cancelButtonText: 'Hủy'
+        });
+        if (!confirmResult.isConfirmed) return;
 
         setIsRequestingReturn(true);
         try {
             await requestReturn(id, reason);
-            alert('Đã gửi yêu cầu trả hàng thành công!');
+            Swal.fire({
+                title: 'Thành công',
+                text: 'Đã gửi yêu cầu trả hàng thành công!',
+                icon: 'success',
+                confirmButtonColor: '#3085d6'
+            });
             await fetchOrder();
         } catch (err) {
-            alert(err.response?.data?.error || 'Không thể gửi yêu cầu trả hàng');
+            Swal.fire({
+                title: 'Thất bại',
+                text: err.response?.data?.error || 'Không thể gửi yêu cầu trả hàng',
+                icon: 'error',
+                confirmButtonColor: '#d33'
+            });
         } finally {
             setIsRequestingReturn(false);
         }

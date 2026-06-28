@@ -1,6 +1,6 @@
 import time
 import random
-from src.apriori import base_apriori
+from apriori import base_apriori
 
 def run(transactions, min_support_count, sample_ratio=0.2):
     """

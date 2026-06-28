@@ -1,6 +1,6 @@
 import time
 import math
-from src.apriori import base_apriori
+from apriori import base_apriori
 
 def run(transactions, min_support_count, num_partitions=2):
     start_time = time.time()

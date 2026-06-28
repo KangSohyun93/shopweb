@@ -271,6 +271,7 @@ CREATE TABLE ai_rules (
     support_count INT NOT NULL CHECK (support_count > 0),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE INDEX idx_airules_antecedent ON ai_rules(antecedent_id);
 CREATE TABLE IF NOT EXISTS user_interactions (
     interaction_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NULL,

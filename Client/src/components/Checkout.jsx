@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import { createAddress, createOrder, getCart, getAddresses, createVNPayPaymentUrl } from '../services/api'; 
 import axios from 'axios';
 
@@ -175,8 +176,14 @@ const Checkout = () => {
                     throw new Error('Không lấy được URL thanh toán VNPay');
                 }
             } else {
-                alert('Đặt hàng thành công!');
-                navigate('/orders'); 
+                Swal.fire({
+                    title: 'Đặt hàng thành công!',
+                    text: 'Đơn hàng của bạn đã được ghi nhận. Cảm ơn bạn đã mua hàng!',
+                    icon: 'success',
+                    confirmButtonColor: '#3085d6'
+                }).then(() => {
+                    navigate('/orders'); 
+                });
             } 
 
         } catch (err) {

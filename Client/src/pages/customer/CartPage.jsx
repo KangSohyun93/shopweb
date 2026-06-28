@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import { getCart, updateCartItem, deleteCartItem, updateCartItemVariant } from '../../services/api';
 import axios from 'axios';
 
@@ -32,6 +33,11 @@ const CartPage = () => {
     }, [recIsLoadingMore, recHasMore]);
 
     const fetchCart = async () => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         try {
             const response = await getCart();
@@ -106,7 +112,12 @@ const CartPage = () => {
             await updateCartItem(cartItemId, newQuantity);
         } catch (error) {
             console.error('Error updating quantity:', error);
-            alert('Không thể cập nhật số lượng. Vui lòng thử lại.');
+            Swal.fire({
+                title: 'Lỗi',
+                text: 'Không thể cập nhật số lượng. Vui lòng thử lại.',
+                icon: 'error',
+                confirmButtonColor: '#d33'
+            });
             setCart(originalCart);
         }
     };
@@ -118,7 +129,12 @@ const CartPage = () => {
             await deleteCartItem(cartItemId);
         } catch (error) {
             console.error('Error deleting item:', error);
-            alert('Không thể xóa sản phẩm. Vui lòng thử lại.');
+            Swal.fire({
+                title: 'Lỗi',
+                text: 'Không thể xóa sản phẩm. Vui lòng thử lại.',
+                icon: 'error',
+                confirmButtonColor: '#d33'
+            });
             setCart(originalCart);
         }
     };
@@ -130,7 +146,12 @@ const CartPage = () => {
             await fetchCart(); 
         } catch (error) {
             console.error('Error changing variant:', error);
-            alert('Không thể thay đổi biến thể. Vui lòng thử lại.');
+            Swal.fire({
+                title: 'Lỗi',
+                text: 'Không thể thay đổi biến thể. Vui lòng thử lại.',
+                icon: 'error',
+                confirmButtonColor: '#d33'
+            });
             setCart(originalCart);
         }
     };
@@ -164,7 +185,12 @@ const CartPage = () => {
 
     const handleCheckout = () => {
         if (selectedItems.size === 0) {
-            alert('Vui lòng chọn ít nhất một sản phẩm để thanh toán!');
+            Swal.fire({
+                title: 'Thông báo',
+                text: 'Vui lòng chọn ít nhất một sản phẩm để thanh toán!',
+                icon: 'warning',
+                confirmButtonColor: '#3085d6'
+            });
             return;
         }
         
@@ -178,6 +204,13 @@ const CartPage = () => {
             <h2 className="text-3xl font-extrabold mb-8 text-[#22336b] text-center">Giỏ hàng của bạn</h2>
             {loading ? (
                 <p className="text-center text-lg">Đang tải...</p>
+            ) : !localStorage.getItem('token') ? (
+                <div className="flex flex-col items-center justify-center py-16 bg-white border border-gray-100 rounded-2xl shadow-sm p-8 max-w-lg mx-auto">
+                    <img src="https://cdn-icons-png.flaticon.com/512/2038/2038854.png" alt="unauthenticated cart" className="w-28 h-28 mb-4 opacity-50" />
+                    <p className="text-gray-800 text-xl font-bold mb-2">Bạn chưa đăng nhập</p>
+                    <p className="text-gray-500 text-sm mb-6 text-center">Vui lòng đăng nhập tài khoản của bạn để xem giỏ hàng và tiếp tục mua sắm.</p>
+                    <Link to="/login" className="px-8 py-3 bg-[#22336b] text-white rounded-lg shadow hover:bg-blue-800 hover:shadow-lg transition-all font-semibold uppercase tracking-wider text-xs">Đăng nhập ngay</Link>
+                </div>
             ) : !cart || !cart.items || cart.items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16">
                     <img src="https://cdn-icons-png.flaticon.com/512/2038/2038854.png" alt="empty cart" className="w-32 h-32 mb-4 opacity-60" />
