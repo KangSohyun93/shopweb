@@ -113,7 +113,10 @@ const OrdersPage = () => {
                             <div className="flex-grow">
                                 <p className="font-semibold text-gray-800 line-clamp-1">{representativeItem.product_name}</p>
                                 
-                                <p className="text-sm text-gray-500">Size: {representativeItem.size || 'N/A'}</p>
+                                <p className="text-sm text-gray-500">
+                                    Phân loại: Size {representativeItem.size || 'N/A'}
+                                    {representativeItem.color && representativeItem.color !== 'default' ? `, Màu ${representativeItem.color}` : ''}
+                                </p>
 
                                 {otherItemsCount > 0 && (
                                     <p className="text-sm text-gray-500 mt-1">và {otherItemsCount} sản phẩm khác</p>

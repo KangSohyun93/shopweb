@@ -260,7 +260,7 @@ const CartPage = () => {
                                         <select value={item.variant_id} onChange={(e) => handleChangeVariant(item.cart_item_id, e.target.value)} className="border rounded px-2 py-1 focus:ring focus:ring-blue-200">
                                             {item.variants && item.variants.map(variant => (
                                                 <option key={variant.variant_id} value={variant.variant_id}>
-                                                    {variant.size ? `Size: ${variant.size}` : variant.sku}
+                                                    {`Size: ${variant.size || 'N/A'}${variant.color && variant.color !== 'default' ? `, Màu: ${variant.color}` : ''}`}
                                                 </option>
                                             ))}
                                         </select>

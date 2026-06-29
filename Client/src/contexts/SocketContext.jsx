@@ -14,14 +14,39 @@ export const useSocket = () => {
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
+  const [token, setToken] = useState(localStorage.getItem('token'));
+
+  // Theo dõi sự thay đổi của Token trong localStorage để tự động kết nối/ngắt kết nối
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setToken(localStorage.getItem('token'));
+    };
+
+    // Chu kỳ kiểm tra 1 giây phòng trường hợp storage event không kích hoạt trong cùng tab
+    const interval = setInterval(() => {
+      const currentToken = localStorage.getItem('token');
+      if (currentToken !== token) {
+        setToken(currentToken);
+      }
+    }, 1000);
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [token]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
+    if (!token) {
+      setConnected(false);
+      setSocket(null);
+      return;
+    }
 
-    // Create socket connection
+    // Khởi tạo kết nối Socket (cho phép WebSockets và Polling để mượt mà hơn)
     const newSocket = io('http://localhost:5000', {
-      transports: ['polling'],
+      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 5
@@ -31,15 +56,17 @@ export const SocketProvider = ({ children }) => {
       console.log('Socket connected:', newSocket.id);
       setConnected(true);
       
-      // Get user info from token
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         
-        if (payload.user_id && payload.role === 'admin') {
-          newSocket.emit('admin:join', payload.user_id);
-          newSocket.emit('admin:join-room');
-        } else if (payload.user_id) {
+        if (payload.user_id) {
+          // Tất cả mọi người (kể cả admin) đều join vào room user của mình để nhận tin nhắn real-time gửi cho chính họ
           newSocket.emit('user:join', payload.user_id);
+
+          if (payload.role === 'admin') {
+            newSocket.emit('admin:join', payload.user_id);
+            newSocket.emit('admin:join-room');
+          }
         }
       } catch (error) {
         console.error('Error parsing token:', error);
@@ -53,11 +80,6 @@ export const SocketProvider = ({ children }) => {
 
     newSocket.on('connect_error', (error) => {
       console.error('🔴 Socket connection error:', error);
-      console.error('🔴 Error details:', {
-        message: error?.message,
-        code: error?.code,
-        description: error?.description
-      });
       setConnected(false);
     });
 
@@ -66,7 +88,7 @@ export const SocketProvider = ({ children }) => {
     return () => {
       newSocket.close();
     };
-  }, []);
+  }, [token]);
 
   return (
     <SocketContext.Provider value={{ socket, connected }}>

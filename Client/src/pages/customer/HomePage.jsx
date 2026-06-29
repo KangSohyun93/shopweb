@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
@@ -285,7 +285,7 @@ const HomePage = () => {
               </Link>
             </div>
             <div className="md:w-1/2 text-center">
-              <div className="text-8xl font-extrabold text-gray-700 opacity-20">H&M</div>
+              <div className="text-8xl font-extrabold text-gray-700 opacity-20">VIBETHREAD</div>
             </div>
           </div>
         </div>

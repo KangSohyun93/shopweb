@@ -1,4 +1,4 @@
-﻿-- ==========================================
+-- ==========================================
 -- SHOPWEB_DB - Export toàn bộ dữ liệu
 -- Thời gian: 20:48:30 4/6/2026
 -- Encoding: UTF-8 (hỗ trợ tiếng Việt)
@@ -1102,7 +1102,7 @@ TRUNCATE TABLE `brands`;
 INSERT IGNORE INTO `brands` (`brand_id`, `name`, `description`, `created_at`, `updated_at`) VALUES
 (1, 'Uniqlo', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 (2, 'Zara', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-(3, 'H&M', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+(3, 'Nelly', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- ==========================================
 -- Dữ liệu bảng: products (5621 dòng)

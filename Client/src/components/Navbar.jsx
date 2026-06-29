@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
@@ -51,14 +51,10 @@ const Navbar = () => {
 
   return (
     <nav className="bg-white border-b border-gray-200 fixed top-0 left-0 w-full z-50 shadow-sm flex flex-col">
-      <div className="bg-gray-100 text-center py-1.5 text-xs text-gray-600 tracking-wide uppercase font-medium">
-        Miễn phí vận chuyển cho đơn hàng trên 500.000đ
-      </div>
-
       <div className="container mx-auto px-4 flex justify-between items-center h-16">
         {/* LOGO */}
         <div className="flex-shrink-0">
-          <Link to="/" className="text-red-600 text-3xl font-extrabold tracking-tighter">H&M Style</Link>
+          <Link to="/" className="text-black text-3xl font-black tracking-widest uppercase hover:text-red-600 transition">VibeThread</Link>
         </div>
 
         {/* MEGA MENU: ÁO | QUẦN & VÁY | KHÁC */}

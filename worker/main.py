@@ -56,9 +56,9 @@ REDIS_CONFIG = {
     'decode_responses': True
 }
 
-# 🎯 Đọc toàn bộ cấu hình AI từ MySQL
+# 🎯 Đọc toàn bộ cấu hình từ MySQL
 def get_ai_settings():
-    print("🔍 Đang đọc toàn bộ cấu hình AI từ MySQL...")
+    print("🔍 Đang đọc toàn bộ cấu hình gợi ý từ MySQL...")
     settings = {
         'active_algorithm': 'fpgrowth',
         'min_support_count': 2,

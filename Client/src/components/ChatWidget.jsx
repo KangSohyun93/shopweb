@@ -43,10 +43,12 @@ const ChatWidget = () => {
  
     // Listen for new messages
     const handleNewMessage = (data) => {
+      console.log('📨 [ChatWidget] Received chat:new-message event:', data);
       // FIX: Use == instead of === to handle int/string mismatch from socket
       if (String(data.conversationId) === String(conversationId)) {
         // Only add admin messages (user's own messages are handled via optimistic UI + handleMessageSent)
         if (data.sender_type === 'admin') {
+          console.log('✏️ Appending admin message to client box');
           setMessages((prev) => {
             const messageExists = prev.some(m => String(m.message_id) === String(data.message_id));
             if (messageExists) {
@@ -64,6 +66,8 @@ const ChatWidget = () => {
             setUnreadCount(prev => prev + 1);
           }
         }
+      } else {
+        console.log('ℹ️ Message belongs to another conversation. Target:', data.conversationId, 'Client Active:', conversationId);
       }
     };
  

@@ -268,7 +268,10 @@ const OrderDetailPage = () => {
                                                 <Link to={`/products/${item.product_id}`} className="font-semibold text-gray-800 hover:text-blue-600 transition-colors">
                                                     {item.product_name}
                                                 </Link>
-                                                <p className="text-sm text-gray-500">Phân loại: Size {item.size || 'N/A'}</p>
+                                                <p className="text-sm text-gray-500">
+                                                     Phân loại: Size {item.size || 'N/A'}
+                                                     {item.color && item.color !== 'default' ? `, Màu ${item.color}` : ''}
+                                                 </p>
                                                 <p className="text-sm text-gray-500">Số lượng: {item.quantity}</p>
                                                 <p className="font-semibold mt-2">{(item.price * item.quantity).toLocaleString('vi-VN')} $</p>
                                                 

@@ -10,8 +10,8 @@ exports.getSettings = async (req, res) => {
         const [settings] = await db.query('SELECT setting_key, setting_value, description FROM ai_settings');
         res.status(200).json({ success: true, data: settings });
     } catch (error) {
-        console.error('Lỗi khi lấy cấu hình AI:', error);
-        res.status(500).json({ success: false, message: 'Lỗi server khi lấy cấu hình AI' });
+        console.error('Lỗi khi lấy cấu hình:', error);
+        res.status(500).json({ success: false, message: 'Lỗi server khi lấy cấu hình' });
     }
 };
 
@@ -110,8 +110,8 @@ exports.updateSetting = async (req, res) => {
         }
         res.status(200).json({ success: true, message: 'Cập nhật cấu hình thành công' });
     } catch (error) {
-        console.error('Lỗi khi cập nhật cấu hình AI:', error);
-        res.status(500).json({ success: false, message: 'Lỗi server khi cập nhật cấu hình AI' });
+        console.error('Lỗi khi cập nhật cấu hình:', error);
+        res.status(500).json({ success: false, message: 'Lỗi server khi cập nhật cấu hình' });
     }
 };
 

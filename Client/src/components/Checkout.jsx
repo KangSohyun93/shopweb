@@ -265,8 +265,11 @@ const Checkout = () => {
                                     <div key={item.cart_item_id} className="flex justify-between items-center text-sm border-b pb-2">
                                         <div>
                                             <p className="font-medium">{item.product_name}</p>
-                                            <p className="text-gray-500">Phân loại: Size {item.size || 'N/A'}</p>
-                    <p className="text-gray-500">Số lượng: x{item.quantity}</p>
+                                            <p className="text-gray-500">
+                                                Phân loại: Size {item.size || 'N/A'}
+                                                {item.color && item.color !== 'default' ? `, Màu ${item.color}` : ''}
+                                            </p>
+                                            <p className="text-gray-500">Số lượng: x{item.quantity}</p>
                 </div>
                 <p className="font-semibold">{(item.price * item.quantity).toLocaleString('vi-VN')} $</p>
             </div>

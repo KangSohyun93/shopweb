@@ -92,7 +92,8 @@ io.on('connection', (socket) => {
     }
     userSockets.set(userId.toString(), socket.id);
     socket.userId = userId;
-    console.log(`User ${userId} joined with socket ${socket.id}`);
+    socket.join(`user:${userId}`); // Join user-specific room to support multi-tab sync
+    console.log(`User ${userId} joined with socket ${socket.id} and joined room user:${userId}`);
   });
 
   // Admin joins
@@ -168,16 +169,11 @@ io.on('connection', (socket) => {
           userId: conversation.user_id
         });
       } else {
-        // Notify specific user
-        const userSocketId = userSockets.get(conversation.user_id.toString());
-        if (userSocketId) {
-          io.to(userSocketId).emit('chat:new-message', {
-            ...newMessage,
-            conversationId
-          });
-        } else {
-          console.warn(`⚠️ User socket not found for user ${conversation.user_id}`);
-        }
+        // Notify specific user (supports multiple tabs/devices)
+        io.to(`user:${conversation.user_id}`).emit('chat:new-message', {
+          ...newMessage,
+          conversationId
+        });
       }
     } catch (error) {
       console.error('❌ Error sending message:', error);
@@ -195,16 +191,13 @@ io.on('connection', (socket) => {
   socket.on('chat:mark-read', async (conversationId) => {
     try {
       const Chat = require('./models/chat');
-      const senderType = socket.isAdmin ? 'user' : 'admin';
+      const senderType = socket.isAdmin ? 'admin' : 'user';
       await Chat.markAsRead(conversationId, senderType);
       
       // Notify the other party
       if (socket.isAdmin) {
         const conversation = await Chat.getConversationById(conversationId);
-        const userSocketId = userSockets.get(conversation.user_id.toString());
-        if (userSocketId) {
-          io.to(userSocketId).emit('chat:messages-read', conversationId);
-        }
+        io.to(`user:${conversation.user_id}`).emit('chat:messages-read', conversationId);
       } else {
         io.to('admins').emit('chat:messages-read', conversationId);
       }
@@ -218,13 +211,10 @@ io.on('connection', (socket) => {
     const { conversationId, isTyping } = data;
     
     if (socket.isAdmin) {
-      // Notify user
+      // Notify user (supports multiple tabs/devices)
       const Chat = require('./models/chat');
       Chat.getConversationById(conversationId).then(conversation => {
-        const userSocketId = userSockets.get(conversation.user_id.toString());
-        if (userSocketId) {
-          io.to(userSocketId).emit('chat:typing', { conversationId, isTyping, isAdmin: true });
-        }
+        io.to(`user:${conversation.user_id}`).emit('chat:typing', { conversationId, isTyping, isAdmin: true });
       });
     } else {
       // Notify admins

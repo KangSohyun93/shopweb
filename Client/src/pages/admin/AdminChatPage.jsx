@@ -36,10 +36,16 @@ const AdminChatPage = () => {
     if (!socket) return;
 
     const handleNewMessage = (data) => {
+      console.log('📨 [AdminChatPage] Received chat:new-message event:', data);
       const current = selectedConversationRef.current;
+      console.log('👥 Current active conversation:', current);
 
-      // FIX: Use String() comparison to avoid int/string mismatch
+      // Luôn tải lại danh sách cuộc trò chuyện để đưa người vừa gửi lên đầu và cập nhật tin nhắn mới
+      loadConversations();
+
+      // Nếu đang mở đúng cuộc trò chuyện này, thêm tin nhắn mới vào hộp chat
       if (current && String(data.conversationId) === String(current.conversation_id)) {
+        console.log('✏️ Appending message to current conversation');
         setMessages((prev) => {
           const messageExists = prev.some(m => String(m.message_id) === String(data.message_id));
           if (messageExists) {
@@ -48,25 +54,10 @@ const AdminChatPage = () => {
           }
           return [...prev, data];
         });
-        // Mark as read since admin is viewing this conversation
+        // Báo đã đọc
         socket.emit('chat:mark-read', current.conversation_id);
-        // Update unread to 0 for this conversation in the list
-        setConversations((prev) =>
-          prev.map((conv) =>
-            String(conv.conversation_id) === String(current.conversation_id)
-              ? { ...conv, unread_count: 0 }
-              : conv
-          )
-        );
       } else {
-        // FIX: Update unread count in conversations list for other conversations
-        setConversations((prev) =>
-          prev.map((conv) =>
-            String(conv.conversation_id) === String(data.conversationId)
-              ? { ...conv, unread_count: (conv.unread_count || 0) + 1, last_message: data.message, updated_at: data.created_at }
-              : conv
-          )
-        );
+        console.log('ℹ️ Message belongs to another conversation. Target:', data.conversationId, 'Active:', current?.conversation_id);
       }
     };
 

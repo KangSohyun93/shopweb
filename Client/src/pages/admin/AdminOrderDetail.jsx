@@ -92,7 +92,10 @@ const AdminOrderDetail = () => {
                                                 <Link to={`/products/${item.product_id}`} className="font-semibold text-lg hover:text-blue-600 transition-colors">
                                                     {item.product_name}
                                                 </Link>
-                                                <p className="text-gray-500">Phân loại: Size {item.size || 'N/A'}</p>
+                                                <p className="text-gray-500">
+                                                    Phân loại: Size {item.size || 'N/A'}
+                                                    {item.color && item.color !== 'default' ? `, Màu ${item.color}` : ''}
+                                                </p>
                                                 <p className="text-gray-500">Số lượng: {item.quantity}</p>
                                             </div>
                                         </div>

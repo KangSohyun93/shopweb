@@ -80,6 +80,12 @@ const AIRulesDashboard = () => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isLoadingRules, setIsLoadingRules] = useState(true);
 
+  // States quản lý phân trang danh sách luật
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRules, setTotalRules] = useState(0);
+  const [rulesLimit, setRulesLimit] = useState(10);
+
   // ── Tab: Trang chủ ────────────────────────────────────────
   const [homepageUseCartRedis, setHomepageUseCartRedis] = useState(true);
   const [homepageUseTrending, setHomepageUseTrending] = useState(true);
@@ -118,14 +124,19 @@ const AIRulesDashboard = () => {
   const API_BASE = 'http://localhost:5000/api/ai-rules';
 
   // ── Fetch all data ─────────────────────────────────────────
-  const fetchData = async () => {
+  const fetchData = async (pageNumber = currentPage) => {
     setIsLoadingRules(true);
     try {
       const [rulesRes, settingsRes] = await Promise.all([
-        axios.get(API_BASE),
+        axios.get(`${API_BASE}?page=${pageNumber}&limit=${rulesLimit}`),
         axios.get(`${API_BASE}/settings`),
       ]);
-      if (rulesRes.data.success) setRules(rulesRes.data.data);
+      if (rulesRes.data.success) {
+        setRules(rulesRes.data.data);
+        setTotalPages(rulesRes.data.totalPages || 1);
+        setTotalRules(rulesRes.data.total || 0);
+        setCurrentPage(rulesRes.data.page || 1);
+      }
       if (settingsRes.data.success) {
         settingsRes.data.data.forEach(item => {
           const val = item.setting_value;
@@ -168,14 +179,14 @@ const AIRulesDashboard = () => {
         });
       }
     } catch (err) {
-      console.error('Lỗi khi tải dữ liệu AI:', err);
+      console.error('Lỗi khi tải dữ liệu cấu hình:', err);
       showToast('error', 'Không thể kết nối đến máy chủ API.');
     } finally {
       setIsLoadingRules(false);
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(1); }, []);
 
   const showToast = (type, text) => {
     setMessage({ type, text });
@@ -220,7 +231,7 @@ const AIRulesDashboard = () => {
           { setting_key: 'new_arrivals_days',             setting_value: newArrivalsDays },
         ]
       });
-      showToast('success', 'Đã lưu toàn bộ cấu hình AI mới thành công!');
+      showToast('success', 'Đã lưu toàn bộ cấu hình mới thành công!');
       fetchData();
     } catch (err) {
       console.error(err);
@@ -248,10 +259,10 @@ const AIRulesDashboard = () => {
 
   // ── Tab definitions ────────────────────────────────────────
   const tabs = [
-    { id: 'homepage', label: '🏠 Trang chủ',       color: 'indigo' },
-    { id: 'product',  label: '📦 Chi tiết SP',      color: 'blue'   },
-    { id: 'cart',     label: '🛒 Giỏ hàng',         color: 'emerald'},
-    { id: 'global',   label: '⚙️ Toàn cục',         color: 'violet' },
+    { id: 'homepage', label: 'Trang chủ',       color: 'indigo' },
+    { id: 'product',  label: 'Chi tiết SP',      color: 'blue'   },
+    { id: 'cart',     label: 'Giỏ hàng',         color: 'emerald'},
+    { id: 'global',   label: 'Toàn cục',         color: 'violet' },
   ];
 
   const tabBorder = { indigo: 'border-indigo-500 text-indigo-700', blue: 'border-blue-500 text-blue-700', emerald: 'border-emerald-500 text-emerald-700', violet: 'border-violet-500 text-violet-700' };
@@ -263,17 +274,17 @@ const AIRulesDashboard = () => {
       <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-extrabold text-gray-950 tracking-tight flex items-center gap-3">
-            🤖 Cấu hình &amp; Gợi ý sản phẩm AI
+            Cấu hình &amp; Gợi ý sản phẩm
           </h1>
           <p className="text-gray-500 mt-1">
             Quản lý chiến lược gợi ý riêng cho từng trang và các tham số khai thác luật mua kèm.
           </p>
         </div>
         <button
-          onClick={fetchData}
+          onClick={() => fetchData(currentPage)}
           className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium text-sm text-gray-700 shadow-sm flex items-center gap-2"
         >
-          🔄 Làm mới dữ liệu
+          Làm mới dữ liệu
         </button>
       </div>
 
@@ -320,14 +331,14 @@ const AIRulesDashboard = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     <div className="space-y-2 p-4 rounded-xl bg-gray-50 border border-gray-100 flex flex-col justify-between">
                       <div>
-                        <p className="text-xs font-bold text-gray-600">🛒 Redis từ giỏ hàng (Tầng 0)</p>
+                        <p className="text-xs font-bold text-gray-600">Redis từ giỏ hàng (Tầng 0)</p>
                         <p className="text-xs text-gray-400 mb-2">Gợi ý từ giỏ hàng (Association Rules)</p>
                       </div>
                       <Toggle value={homepageUseCartRedis} onChange={setHomepageUseCartRedis} color="indigo" />
                     </div>
                     <div className="space-y-2 p-4 rounded-xl bg-gray-50 border border-gray-100 flex flex-col justify-between">
                       <div>
-                        <p className="text-xs font-bold text-gray-600">👤 Jaccard cá nhân hóa (Tầng 1)</p>
+                        <p className="text-xs font-bold text-gray-600">Jaccard cá nhân hóa (Tầng 1)</p>
                         <p className="text-xs text-gray-400 mb-2">Cá nhân hóa theo danh mục lịch sử</p>
                       </div>
                       <div className="space-y-1">
@@ -343,7 +354,7 @@ const AIRulesDashboard = () => {
                     </div>
                     <div className="space-y-2 p-4 rounded-xl bg-gray-50 border border-gray-100 flex flex-col justify-between">
                       <div>
-                        <p className="text-xs font-bold text-gray-600">📈 Bán chạy/Xu hướng (Tầng 2)</p>
+                        <p className="text-xs font-bold text-gray-600">Bán chạy/Xu hướng (Tầng 2)</p>
                         <p className="text-xs text-gray-400 mb-2">Sử dụng sản phẩm bán chạy làm fallback</p>
                       </div>
                       <Toggle value={homepageUseTrending} onChange={setHomepageUseTrending} color="indigo" />
@@ -376,28 +387,28 @@ const AIRulesDashboard = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="space-y-2 p-4 rounded-xl bg-gray-50 border border-gray-100 flex flex-col justify-between">
                       <div>
-                        <p className="text-xs font-bold text-gray-600">🔴 Redis SP đang xem (Tầng 1)</p>
+                        <p className="text-xs font-bold text-gray-600">Redis SP đang xem (Tầng 1)</p>
                         <p className="text-xs text-gray-400 mb-2">Luật mua kèm từ FP-Growth/Apriori của sản phẩm này</p>
                       </div>
                       <Toggle value={productUseItemRedis} onChange={setProductUseItemRedis} color="blue" />
                     </div>
                     <div className="space-y-2 p-4 rounded-xl bg-gray-50 border border-gray-100 flex flex-col justify-between">
                       <div>
-                        <p className="text-xs font-bold text-gray-600">🛒 Redis từ giỏ hàng (Tầng 2)</p>
+                        <p className="text-xs font-bold text-gray-600">Redis từ giỏ hàng (Tầng 2)</p>
                         <p className="text-xs text-gray-400 mb-2">Bổ sung gợi ý mua kèm từ các SP trong giỏ hiện tại</p>
                       </div>
                       <Toggle value={productUseCartRedis} onChange={setProductUseCartRedis} color="blue" />
                     </div>
                     <div className="space-y-2 p-4 rounded-xl bg-gray-50 border border-gray-100 flex flex-col justify-between">
                       <div>
-                        <p className="text-xs font-bold text-gray-600">🏷️ Jaccard cùng danh mục (Tầng 3)</p>
+                        <p className="text-xs font-bold text-gray-600">Jaccard cùng danh mục (Tầng 3)</p>
                         <p className="text-xs text-gray-400 mb-2">SP cùng danh mục dựa theo điểm tương đồng Jaccard</p>
                       </div>
                       <Toggle value={productUseCategoryJaccard} onChange={setProductUseCategoryJaccard} color="blue" />
                     </div>
                     <div className="space-y-2 p-4 rounded-xl bg-gray-50 border border-gray-100 flex flex-col justify-between">
                       <div>
-                        <p className="text-xs font-bold text-gray-600">📈 Trending (Tầng 4)</p>
+                        <p className="text-xs font-bold text-gray-600">Trending (Tầng 4)</p>
                         <p className="text-xs text-gray-400 mb-2">Sản phẩm bán chạy nhất hệ thống làm fallback</p>
                       </div>
                       <Toggle value={productUseTrending} onChange={setProductUseTrending} color="blue" />
@@ -431,14 +442,14 @@ const AIRulesDashboard = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="space-y-2 p-4 rounded-xl bg-gray-50 border border-gray-100 flex flex-col justify-between">
                       <div>
-                        <p className="text-xs font-bold text-gray-600">🔴 Redis toàn bộ giỏ hàng (Tầng 1)</p>
+                        <p className="text-xs font-bold text-gray-600">Redis toàn bộ giỏ hàng (Tầng 1)</p>
                         <p className="text-xs text-gray-400 mb-2">Tra Redis cho tất cả SP trong giỏ, gộp gợi ý mua kèm</p>
                       </div>
                       <Toggle value={cartUseRedis} onChange={setCartUseRedis} color="emerald" />
                     </div>
                     <div className="space-y-2 p-4 rounded-xl bg-gray-50 border border-gray-100 flex flex-col justify-between">
                       <div>
-                        <p className="text-xs font-bold text-gray-600">📈 Trending (Tầng 2)</p>
+                        <p className="text-xs font-bold text-gray-600">Trending (Tầng 2)</p>
                         <p className="text-xs text-gray-400 mb-2">Sản phẩm bán chạy nhất bổ sung làm fallback</p>
                       </div>
                       <Toggle value={cartUseTrending} onChange={setCartUseTrending} color="emerald" />
@@ -448,7 +459,7 @@ const AIRulesDashboard = () => {
                 <div className="border-t pt-6">
                   <SectionHeader num="2" color="emerald" title="Tỷ lệ trộn kết quả" />
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <NumInput label="Số SP liên quan (AI Redis)" value={cartBlendRelevant} onChange={setCartBlendRelevant} min={0} accent="emerald" />
+                    <NumInput label="Số SP liên quan (Redis)" value={cartBlendRelevant} onChange={setCartBlendRelevant} min={0} accent="emerald" />
                     <NumInput label="Số SP xu hướng (Trending)" value={cartBlendTrending} onChange={setCartBlendTrending} min={0} accent="emerald" />
                     <BlendPreview relevant={cartBlendRelevant} trending={cartBlendTrending} accent="emerald" />
                   </div>
@@ -467,7 +478,7 @@ const AIRulesDashboard = () => {
               <div className="space-y-6">
                 {/* Worker */}
                 <div>
-                  <SectionHeader num="1" color="violet" title="Thuật toán khai thác luật mua kèm (AI Worker)" />
+                  <SectionHeader num="1" color="violet" title="Thuật toán khai thác luật mua kèm (Worker)" />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-gray-500">Thuật toán hoạt động</label>
@@ -525,8 +536,7 @@ const AIRulesDashboard = () => {
         <div className="space-y-6">
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 bg-gradient-to-br from-white to-gray-50 sticky top-6">
             <div className="flex items-center gap-3 mb-4">
-              <span className="p-3 bg-amber-50 text-amber-600 rounded-xl text-xl font-bold">⚡</span>
-              <h3 className="text-lg font-bold text-gray-900">Bảng điều khiển AI</h3>
+              <h3 className="text-lg font-bold text-gray-900">Bảng điều khiển</h3>
             </div>
             <p className="text-gray-500 text-sm mb-6 leading-relaxed">
               Lưu cấu hình từ tất cả 4 tab và kích hoạt chạy thuật toán Python để tính lại luật kết hợp.
@@ -534,11 +544,11 @@ const AIRulesDashboard = () => {
             <div className="space-y-3">
               <button onClick={handleSaveSettings} disabled={isSaving}
                 className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 disabled:bg-gray-300 transition duration-300 shadow-lg flex items-center justify-center gap-2 text-sm">
-                {isSaving ? '⏳ Đang lưu...' : '💾 Lưu tất cả cấu hình'}
+                {isSaving ? '⏳ Đang lưu...' : 'Lưu tất cả cấu hình'}
               </button>
               <button onClick={handleRunMining} disabled={isMining}
                 className="w-full py-3 bg-gradient-to-r from-red-600 to-amber-500 text-white rounded-xl font-bold hover:from-red-700 hover:to-amber-600 disabled:from-gray-300 disabled:to-gray-300 transition duration-300 shadow-lg flex items-center justify-center gap-2 text-sm">
-                {isMining ? <span className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"/> : '🚀 Chạy tính toán lại AI'}
+                {isMining ? <span className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"/> : 'Chạy tính toán lại'}
               </button>
             </div>
             {lastMiningStats && lastMiningStats.algorithm && lastMiningStats.algorithm !== 'none' && (
@@ -579,10 +589,10 @@ const AIRulesDashboard = () => {
             <div className="mt-5 pt-4 border-t border-gray-100 space-y-2">
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tóm tắt cấu hình hiện tại</p>
               <div className="text-xs space-y-1 text-gray-600">
-                <p>🏠 Trang chủ: {homepageUseCartRedis ? 'Redis giỏ' : '–'} + {homepageRecMethod === 'hybrid' ? 'Jaccard' : '–'} + {homepageUseTrending ? 'Trending' : '–'} · {homepageBlendRelevant}:{homepageBlendTrending}</p>
-                <p>📦 Chi tiết: {productUseItemRedis ? 'Redis SP' : '–'} + {productUseCartRedis ? 'Redis giỏ' : '–'} + {productUseCategoryJaccard ? 'Jaccard' : '–'} + {productUseTrending ? 'Trending' : '–'} · {productBlendRelevant}:{productBlendTrending}</p>
-                <p>🛒 Giỏ hàng: {cartUseRedis ? 'Redis' : '–'} + {cartUseTrending ? 'Trending' : '–'} · {cartBlendRelevant}:{cartBlendTrending}</p>
-                <p>🆕 New Arrivals: {newArrivalsEnabled ? `mỗi ${newArrivalsInterval} SP / ${newArrivalsDays} ngày` : 'Tắt'}</p>
+                <p>Trang chủ: {homepageUseCartRedis ? 'Redis giỏ' : '–'} + {homepageRecMethod === 'hybrid' ? 'Jaccard' : '–'} + {homepageUseTrending ? 'Trending' : '–'} · {homepageBlendRelevant}:{homepageBlendTrending}</p>
+                <p>Chi tiết: {productUseItemRedis ? 'Redis SP' : '–'} + {productUseCartRedis ? 'Redis giỏ' : '–'} + {productUseCategoryJaccard ? 'Jaccard' : '–'} + {productUseTrending ? 'Trending' : '–'} · {productBlendRelevant}:{productBlendTrending}</p>
+                <p>Giỏ hàng: {cartUseRedis ? 'Redis' : '–'} + {cartUseTrending ? 'Trending' : '–'} · {cartBlendRelevant}:{cartBlendTrending}</p>
+                <p>New Arrivals: {newArrivalsEnabled ? `mỗi ${newArrivalsInterval} SP / ${newArrivalsDays} ngày` : 'Tắt'}</p>
               </div>
             </div>
           </div>
@@ -594,13 +604,13 @@ const AIRulesDashboard = () => {
         <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/50">
           <div>
             <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              📋 Danh sách luật kết hợp sản phẩm ({rules.length})
+              Danh sách luật kết hợp sản phẩm ({totalRules})
             </h2>
             <p className="text-sm text-gray-400 mt-0.5">Sinh bởi {activeAlgorithm === 'fpgrowth' ? 'FP-Growth' : 'Apriori'} — lưu trong Redis Cache</p>
           </div>
-          <button onClick={fetchData}
+          <button onClick={() => fetchData(currentPage)}
             className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-600 flex items-center gap-2">
-            🔄 Tải lại bảng
+            Tải lại bảng
           </button>
         </div>
 
@@ -611,40 +621,87 @@ const AIRulesDashboard = () => {
           </div>
         ) : rules.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
-            <p className="text-4xl mb-3">🤖</p>
-            <p className="font-medium">Chưa có luật nào. Nhấn <strong>Chạy tính toán lại AI</strong> để bắt đầu.</p>
+            <p className="font-medium">Chưa có luật nào. Nhấn <strong>Chạy tính toán lại</strong> để bắt đầu.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  <th className="text-left px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Sản phẩm A (Antecedent)</th>
-                  <th className="text-left px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Gợi ý B (Consequent)</th>
-                  <th className="text-center px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Confidence</th>
-                  <th className="text-center px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Support</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {rules.map((rule, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50/50 transition">
-                    <td className="px-6 py-3.5 text-gray-800 font-medium">{rule.ant_name || `SP #${rule.antecedent}`}</td>
-                    <td className="px-6 py-3.5 text-gray-600">{rule.cons_name || `SP #${rule.consequent}`}</td>
-                    <td className="px-4 py-3.5 text-center">
-                      <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${
-                        rule.confidence >= 0.7 ? 'bg-emerald-100 text-emerald-700' :
-                        rule.confidence >= 0.4 ? 'bg-amber-100 text-amber-700' :
-                        'bg-gray-100 text-gray-600'
-                      }`}>
-                        {(rule.confidence * 100).toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-center text-gray-500">{rule.support_count}</td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="text-left px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Sản phẩm A (Antecedent)</th>
+                    <th className="text-left px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Gợi ý B (Consequent)</th>
+                    <th className="text-center px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Confidence</th>
+                    <th className="text-center px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Support</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {rules.map((rule, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50/50 transition">
+                      <td className="px-6 py-3.5 text-gray-800 font-medium">{rule.ant_name || `SP #${rule.antecedent}`}</td>
+                      <td className="px-6 py-3.5 text-gray-600">{rule.cons_name || `SP #${rule.consequent}`}</td>
+                      <td className="px-4 py-3.5 text-center">
+                        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${
+                          rule.confidence >= 0.7 ? 'bg-emerald-100 text-emerald-700' :
+                          rule.confidence >= 0.4 ? 'bg-amber-100 text-amber-700' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {(rule.confidence * 100).toFixed(1)}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-center text-gray-500">{rule.support_count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="p-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50/50">
+              <span className="text-xs text-gray-500 font-medium">
+                Hiển thị dòng {Math.min((currentPage - 1) * rulesLimit + 1, totalRules)} - {Math.min(currentPage * rulesLimit, totalRules)} trên tổng số {totalRules} luật
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => fetchData(currentPage - 1)}
+                  className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-semibold hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition"
+                >
+                  Trước
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
+                  .map((page, idx, arr) => {
+                    const showEllipsis = idx > 0 && page - arr[idx - 1] > 1;
+                    return (
+                      <span key={page} className="inline-flex items-center gap-1">
+                        {showEllipsis && <span className="px-2 text-xs text-gray-400">...</span>}
+                        <button
+                          type="button"
+                          onClick={() => fetchData(page)}
+                          className={`px-3 py-1.5 border rounded-lg text-xs font-bold transition ${
+                            currentPage === page
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      </span>
+                    );
+                  })}
+                <button
+                  type="button"
+                  disabled={currentPage === totalPages}
+                  onClick={() => fetchData(currentPage + 1)}
+                  className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-semibold hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition"
+                >
+                  Sau
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>
