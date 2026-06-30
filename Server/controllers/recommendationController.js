@@ -81,6 +81,26 @@ const calculateJaccardSimilarity = (userProfileTags, productTags) => {
     return intersection.length / union.length;
 };
 
+
+// 🔍 Lọc loại bỏ các sản phẩm đã hết hàng (tổng stock_quantity của các biến thể = 0)
+const filterInStock = async (productIds) => {
+    if (!productIds || productIds.length === 0) return [];
+    try {
+        const [rows] = await db.query(`
+            SELECT product_id 
+            FROM product_variants 
+            WHERE product_id IN (?) 
+            GROUP BY product_id 
+            HAVING SUM(stock_quantity) > 0
+        `, [productIds]);
+        const inStockSet = new Set(rows.map(r => r.product_id));
+        return productIds.filter(id => inStockSet.has(id));
+    } catch (err) {
+        console.error('⚠️ Lỗi filterInStock:', err.message);
+        return productIds; // Trả về gốc nếu lỗi
+    }
+};
+
 // 🔀 Thuật toán trộn máng động
 const blendRecommendations = (relevantList, trendingList, relevantCount = 4, trendingCount = 1) => {
     const blended = [];
@@ -110,10 +130,10 @@ const injectNewArrivals = async (blendedIds, settings, excludeIds = []) => {
         const allExclude = [...new Set([...blendedIds, ...excludeIds])];
         let query, queryParams;
         if (allExclude.length > 0) {
-            query = `SELECT p.product_id FROM products p WHERE p.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) AND p.product_id NOT IN (${allExclude.map(() => '?').join(',')}) ORDER BY RAND() LIMIT 20`;
+            query = `SELECT p.product_id FROM products p WHERE p.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) AND p.product_id NOT IN (${allExclude.map(() => '?').join(',')}) AND (SELECT SUM(stock_quantity) FROM product_variants WHERE product_id = p.product_id) > 0 ORDER BY RAND() LIMIT 20`;
             queryParams = [days, ...allExclude];
         } else {
-            query = `SELECT p.product_id FROM products p WHERE p.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) ORDER BY RAND() LIMIT 20`;
+            query = `SELECT p.product_id FROM products p WHERE p.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) AND (SELECT SUM(stock_quantity) FROM product_variants WHERE product_id = p.product_id) > 0 ORDER BY RAND() LIMIT 20`;
             queryParams = [days];
         }
         const [newProducts] = await db.query(query, queryParams);
@@ -159,6 +179,7 @@ const getTrendingIds = async (trendingLimit, excludeIds = []) => {
             LEFT JOIN product_variants v ON p.product_id = v.product_id
             LEFT JOIN order_items oi ON v.variant_id = oi.variant_id
             WHERE p.product_id NOT IN (${excludeIds.map(() => '?').join(',')})
+              AND (SELECT SUM(stock_quantity) FROM product_variants WHERE product_id = p.product_id) > 0
             GROUP BY p.product_id ORDER BY total_sold DESC LIMIT ?
         `;
         queryParams = [...excludeIds, trendingLimit];
@@ -168,6 +189,7 @@ const getTrendingIds = async (trendingLimit, excludeIds = []) => {
             FROM products p
             LEFT JOIN product_variants v ON p.product_id = v.product_id
             LEFT JOIN order_items oi ON v.variant_id = oi.variant_id
+            WHERE (SELECT SUM(stock_quantity) FROM product_variants WHERE product_id = p.product_id) > 0
             GROUP BY p.product_id ORDER BY total_sold DESC LIMIT ?
         `;
         queryParams = [trendingLimit];
@@ -215,6 +237,7 @@ exports.getRecommendations = async (req, res) => {
         let aiRecommendedIds = [];
         if (useItemRedis) {
             aiRecommendedIds = await getRedisRecsForProducts([productIdInt], [productIdInt]);
+            aiRecommendedIds = await filterInStock(aiRecommendedIds);
         }
 
         // --- TẦNG 2: Redis từ giỏ hàng (theo cấu hình per-page) ---
@@ -222,7 +245,8 @@ exports.getRecommendations = async (req, res) => {
         if (useCartRedis && cartProductIds.length > 0) {
             const cartForLookup = cartProductIds.filter(id => id !== productIdInt);
             if (cartForLookup.length > 0) {
-                const cartRecs = await getRedisRecsForProducts(cartForLookup, [productIdInt, ...aiRecommendedIds]);
+                let cartRecs = await getRedisRecsForProducts(cartForLookup, [productIdInt, ...aiRecommendedIds]);
+                cartRecs = await filterInStock(cartRecs);
                 aiRecommendedIds = [...aiRecommendedIds, ...cartRecs];
             }
         }
@@ -235,12 +259,10 @@ exports.getRecommendations = async (req, res) => {
                 const catId = currentProd[0].category_id;
                 const [categoryProducts] = await db.query(`
                     SELECT p.product_id, p.category_id,
-                           COALESCE(SUM(oi.quantity), 0) AS total_sold
+                           (SELECT SUM(quantity) FROM order_items oi JOIN product_variants pv ON oi.variant_id = pv.variant_id WHERE pv.product_id = p.product_id) AS total_sold
                     FROM products p
-                    LEFT JOIN product_variants v ON p.product_id = v.product_id
-                    LEFT JOIN order_items oi ON v.variant_id = oi.variant_id
                     WHERE p.category_id = ? AND p.product_id != ?
-                    GROUP BY p.product_id
+                      AND (SELECT SUM(stock_quantity) FROM product_variants WHERE product_id = p.product_id) > 0
                 `, [catId, product_id]);
 
                 const scoredProducts = categoryProducts.map(product => {
@@ -329,6 +351,7 @@ exports.getHomepageRecommendations = async (req, res) => {
         let cartRedisRecs = [];
         if (useCartRedis && cartProductIds.length > 0) {
             cartRedisRecs = await getRedisRecsForProducts(cartProductIds, cartProductIds);
+            cartRedisRecs = await filterInStock(cartRedisRecs);
         }
 
         // --- TẦNG 1: Jaccard cá nhân hóa (theo recommendation_method) ---
@@ -352,12 +375,10 @@ exports.getHomepageRecommendations = async (req, res) => {
         if (preferredCategories.length > 0) {
             const [allProducts] = await db.query(`
                 SELECT p.product_id, p.category_id,
-                       COALESCE(SUM(oi.quantity), 0) AS total_sold
+                       (SELECT SUM(quantity) FROM order_items oi JOIN product_variants pv ON oi.variant_id = pv.variant_id WHERE pv.product_id = p.product_id) AS total_sold
                 FROM products p
-                LEFT JOIN product_variants v ON p.product_id = v.product_id
-                LEFT JOIN order_items oi ON v.variant_id = oi.variant_id
                 WHERE p.category_id IN (?)
-                GROUP BY p.product_id
+                  AND (SELECT SUM(stock_quantity) FROM product_variants WHERE product_id = p.product_id) > 0
             `, [preferredCategories]);
 
             const scoredProducts = allProducts.map(product => {
@@ -437,7 +458,8 @@ exports.getCartRecommendations = async (req, res) => {
         const trendingLimit      = parseInt(settings['trending_limit'], 10) || 50;
 
         // --- TẦNG 1: Redis từ toàn bộ giỏ hàng ---
-        const aiRecommendedIds = useRedis ? await getRedisRecsForProducts(cartProductIds, cartProductIds) : [];
+        let aiRecommendedIds = useRedis ? await getRedisRecsForProducts(cartProductIds, cartProductIds) : [];
+        if (aiRecommendedIds.length > 0) aiRecommendedIds = await filterInStock(aiRecommendedIds);
 
         // --- TẦNG 2: Trending ---
         const trendingRecommendedIds = useTrending ? await getTrendingIds(trendingLimit, cartProductIds) : [];

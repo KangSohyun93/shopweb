@@ -28,9 +28,10 @@ const VariantSelector = ({ variants, onSelect, selectedVariantId }) => {
   const colors = [...new Set(variants.map(v => v.color || 'default'))];
   const sizes = [...new Set(variants.map(v => v.size || 'Free Size'))];
 
-  // Chỉ hiển thị lựa chọn nếu thông tin không phải là mặc định hoặc có nhiều hơn 1 lựa chọn
+  // Luôn hiển thị màu nếu không phải 'default'
   const showColorSelector = colors.length > 1 || (colors.length === 1 && colors[0] !== 'default');
-  const showSizeSelector = sizes.length > 1 || (sizes.length === 1 && sizes[0] !== 'Free Size' && sizes[0] !== 'one-size');
+  // Luôn hiển thị size — kể cả khi chỉ có Free Size (để user biết SP này Freesize)
+  const showSizeSelector = sizes.length >= 1;
 
   const handleColorChange = (color) => {
     setSelectedColor(color);
@@ -110,7 +111,7 @@ const VariantSelector = ({ variants, onSelect, selectedVariantId }) => {
                   `}
                   onClick={() => handleSizeChange(size)}
                 >
-                  {size === 'Free Size' ? 'Freesize' : size}
+                  {size === 'Free Size' || size === 'Freesize' || size === 'One Size' ? 'Free Size' : size}
                 </button>
               );
             })}

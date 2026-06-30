@@ -133,6 +133,44 @@ const AdminCategoriesBrandsTab = () => {
     }
   };
 
+  // ─── Shared Action Buttons ─────────────────────────────────────────────────
+
+  const ActionButtons = ({ type, id, isEditing, onEdit }) => (
+    <div className="flex gap-2 justify-center">
+      {isEditing ? (
+        <>
+          <button
+            onClick={() => handleSave(type, id)}
+            className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+          >
+            Lưu
+          </button>
+          <button
+            onClick={() => handleCancelEdit(type, id)}
+            className="bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-300 transition"
+          >
+            Hủy
+          </button>
+        </>
+      ) : (
+        <>
+          <button
+            onClick={onEdit}
+            className="bg-yellow-400 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-yellow-500 transition"
+          >
+            Sửa
+          </button>
+          <button
+            onClick={() => handleDelete(type, id)}
+            className="bg-red-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-red-600 transition"
+          >
+            Xóa
+          </button>
+        </>
+      )}
+    </div>
+  );
+
   // ─── UI ─────────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -148,11 +186,11 @@ const AdminCategoriesBrandsTab = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-3 sm:p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-extrabold text-[#22336b]">Danh mục &amp; Thương hiệu</h2>
-        <p className="text-sm text-gray-500 mt-1">Quản lý toàn bộ danh mục sản phẩm và thương hiệu trong hệ thống.</p>
+      <div className="mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-extrabold text-[#22336b]">Danh mục &amp; Thương hiệu</h2>
+        <p className="text-xs sm:text-sm text-gray-500 mt-1">Quản lý toàn bộ danh mục sản phẩm và thương hiệu trong hệ thống.</p>
       </div>
 
       {/* Error */}
@@ -167,7 +205,7 @@ const AdminCategoriesBrandsTab = () => {
       )}
 
       {/* Sub-tab navigation */}
-      <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl w-fit">
+      <div className="flex gap-1 mb-4 sm:mb-6 bg-gray-100 p-1 rounded-xl w-fit">
         {[
           { key: 'categories', label: 'Danh mục', count: categories.length },
           { key: 'brands', label: 'Thương hiệu', count: brands.length },
@@ -175,14 +213,14 @@ const AdminCategoriesBrandsTab = () => {
           <button
             key={key}
             onClick={() => setSubTab(key)}
-            className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
               subTab === key
                 ? 'bg-white text-[#22336b] shadow'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             {label}
-            <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
+            <span className={`text-[10px] sm:text-xs px-1.5 py-0.5 rounded-full font-bold ${
               subTab === key ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'
             }`}>
               {count}
@@ -198,13 +236,88 @@ const AdminCategoriesBrandsTab = () => {
             <p className="text-sm text-gray-500">{categories.length} danh mục</p>
             <button
               onClick={() => handleAdd('categories')}
-              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-semibold shadow hover:bg-green-700 transition text-sm"
+              className="flex items-center gap-1.5 bg-green-600 text-white px-3 sm:px-4 py-2 rounded-lg font-semibold shadow hover:bg-green-700 transition text-xs sm:text-sm"
             >
               <span className="text-lg leading-none">+</span> Thêm danh mục
             </button>
           </div>
 
-          <div className="bg-white rounded-xl shadow overflow-hidden">
+          {/* Mobile Card Layout */}
+          <div className="md:hidden space-y-3">
+            {categories.length === 0 && (
+              <div className="py-12 text-center text-gray-400 text-sm">
+                Chưa có danh mục nào. Nhấn &quot;+ Thêm danh mục&quot; để bắt đầu.
+              </div>
+            )}
+            {categories.map((category) => {
+              const isEditing = editingCategoryId === category.category_id;
+              const item = isEditing ? editedItems[category.category_id] || {} : category;
+              return (
+                <div key={category.category_id} className={`bg-white rounded-xl border shadow-sm p-4 ${isEditing ? 'border-blue-300 bg-blue-50/30' : 'border-gray-200'}`}>
+                  {isEditing ? (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Tên danh mục</label>
+                        <input
+                          type="text"
+                          value={item.name || ''}
+                          onChange={e => handleChange(category.category_id, 'name', e.target.value)}
+                          placeholder="Tên danh mục"
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Mô tả</label>
+                        <textarea
+                          value={item.description || ''}
+                          onChange={e => handleChange(category.category_id, 'description', e.target.value)}
+                          placeholder="Mô tả danh mục"
+                          rows={2}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Danh mục cha</label>
+                        <select
+                          value={item.parent_id || ''}
+                          onChange={e => handleChange(category.category_id, 'parent_id', e.target.value || null)}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                        >
+                          <option value="">Không có</option>
+                          {categories
+                            .filter(c => c.category_id !== category.category_id)
+                            .map(c => (
+                              <option key={c.category_id} value={c.category_id}>{c.name}</option>
+                            ))}
+                        </select>
+                      </div>
+                      <div className="flex gap-2 justify-end pt-2 border-t border-gray-100">
+                        <ActionButtons type="categories" id={category.category_id} isEditing={true} onEdit={() => {}} />
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mb-2">
+                        <span className="font-medium text-gray-800">{item.name}</span>
+                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{item.description || <em className="text-gray-300">Chưa có mô tả</em>}</p>
+                      </div>
+                      {item.parent_id && (
+                        <div className="text-xs text-gray-400 mb-2">
+                          Danh mục cha: <span className="text-gray-600">{categories.find(c => c.category_id === item.parent_id)?.name || '—'}</span>
+                        </div>
+                      )}
+                      <div className="flex gap-2 justify-end pt-2 border-t border-gray-100">
+                        <ActionButtons type="categories" id={category.category_id} isEditing={false} onEdit={() => handleEdit('categories', category)} />
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table Layout */}
+          <div className="hidden md:block bg-white rounded-xl shadow overflow-hidden">
             <table className="min-w-full">
               <thead>
                 <tr className="bg-gray-50 border-b">
@@ -283,39 +396,7 @@ const AdminCategoriesBrandsTab = () => {
 
                       {/* Actions */}
                       <td className="py-3 px-4">
-                        <div className="flex gap-2 justify-center">
-                          {isEditing ? (
-                            <>
-                              <button
-                                onClick={() => handleSave('categories', category.category_id)}
-                                className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
-                              >
-                                Lưu
-                              </button>
-                              <button
-                                onClick={() => handleCancelEdit('categories', category.category_id)}
-                                className="bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-300 transition"
-                              >
-                                Hủy
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => handleEdit('categories', category)}
-                                className="bg-yellow-400 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-yellow-500 transition"
-                              >
-                                Sửa
-                              </button>
-                              <button
-                                onClick={() => handleDelete('categories', category.category_id)}
-                                className="bg-red-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-red-600 transition"
-                              >
-                                Xóa
-                              </button>
-                            </>
-                          )}
-                        </div>
+                        <ActionButtons type="categories" id={category.category_id} isEditing={isEditing} onEdit={() => handleEdit('categories', category)} />
                       </td>
                     </tr>
                   );
@@ -333,13 +414,68 @@ const AdminCategoriesBrandsTab = () => {
             <p className="text-sm text-gray-500">{brands.length} thương hiệu</p>
             <button
               onClick={() => handleAdd('brands')}
-              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-semibold shadow hover:bg-green-700 transition text-sm"
+              className="flex items-center gap-1.5 bg-green-600 text-white px-3 sm:px-4 py-2 rounded-lg font-semibold shadow hover:bg-green-700 transition text-xs sm:text-sm"
             >
               <span className="text-lg leading-none">+</span> Thêm thương hiệu
             </button>
           </div>
 
-          <div className="bg-white rounded-xl shadow overflow-hidden">
+          {/* Mobile Card Layout */}
+          <div className="md:hidden space-y-3">
+            {brands.length === 0 && (
+              <div className="py-12 text-center text-gray-400 text-sm">
+                Chưa có thương hiệu nào. Nhấn &quot;+ Thêm thương hiệu&quot; để bắt đầu.
+              </div>
+            )}
+            {brands.map((brand) => {
+              const isEditing = editingBrandId === brand.brand_id;
+              const item = isEditing ? editedItems[brand.brand_id] || {} : brand;
+              return (
+                <div key={brand.brand_id} className={`bg-white rounded-xl border shadow-sm p-4 ${isEditing ? 'border-blue-300 bg-blue-50/30' : 'border-gray-200'}`}>
+                  {isEditing ? (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Tên thương hiệu</label>
+                        <input
+                          type="text"
+                          value={item.name || ''}
+                          onChange={e => handleChange(brand.brand_id, 'name', e.target.value)}
+                          placeholder="Tên thương hiệu"
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Mô tả</label>
+                        <textarea
+                          value={item.description || ''}
+                          onChange={e => handleChange(brand.brand_id, 'description', e.target.value)}
+                          placeholder="Mô tả thương hiệu"
+                          rows={2}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                        />
+                      </div>
+                      <div className="flex gap-2 justify-end pt-2 border-t border-gray-100">
+                        <ActionButtons type="brands" id={brand.brand_id} isEditing={true} onEdit={() => {}} />
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mb-2">
+                        <span className="font-medium text-gray-800">{item.name}</span>
+                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{item.description || <em className="text-gray-300">Chưa có mô tả</em>}</p>
+                      </div>
+                      <div className="flex gap-2 justify-end pt-2 border-t border-gray-100">
+                        <ActionButtons type="brands" id={brand.brand_id} isEditing={false} onEdit={() => handleEdit('brands', brand)} />
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table Layout */}
+          <div className="hidden md:block bg-white rounded-xl shadow overflow-hidden">
             <table className="min-w-full">
               <thead>
                 <tr className="bg-gray-50 border-b">
@@ -393,39 +529,7 @@ const AdminCategoriesBrandsTab = () => {
 
                       {/* Actions */}
                       <td className="py-3 px-4">
-                        <div className="flex gap-2 justify-center">
-                          {isEditing ? (
-                            <>
-                              <button
-                                onClick={() => handleSave('brands', brand.brand_id)}
-                                className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
-                              >
-                                Lưu
-                              </button>
-                              <button
-                                onClick={() => handleCancelEdit('brands', brand.brand_id)}
-                                className="bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-300 transition"
-                              >
-                                Hủy
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => handleEdit('brands', brand)}
-                                className="bg-yellow-400 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-yellow-500 transition"
-                              >
-                                Sửa
-                              </button>
-                              <button
-                                onClick={() => handleDelete('brands', brand.brand_id)}
-                                className="bg-red-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-red-600 transition"
-                              >
-                                Xóa
-                              </button>
-                            </>
-                          )}
-                        </div>
+                        <ActionButtons type="brands" id={brand.brand_id} isEditing={isEditing} onEdit={() => handleEdit('brands', brand)} />
                       </td>
                     </tr>
                   );

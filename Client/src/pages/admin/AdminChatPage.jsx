@@ -250,10 +250,10 @@ const AdminChatPage = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-4">
-      <h1 className="text-3xl font-bold mb-4">Quản lý Chat</h1>
+    <div className="container mx-auto px-3 sm:px-4 py-4">
+      <h1 className="text-xl sm:text-3xl font-bold mb-4">Quản lý Chat</h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 h-[calc(100vh-200px)]">
         {/* Conversations List */}
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div className="p-4 border-b bg-gray-50">

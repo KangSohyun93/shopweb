@@ -195,10 +195,10 @@ const Checkout = () => {
     };
 
     return (
-        <div className="container mx-auto py-8 px-4">
+        <div className="container mx-auto py-6 md:py-8 px-4 mt-14 md:mt-16">
             <h2 className="text-2xl font-bold mb-6">Thanh toán</h2>
             {error && <p className="text-red-500 bg-red-100 p-3 rounded-md mb-4">{error}</p>}
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
                     <h3 className="text-lg font-semibold mb-4">Thông tin giao hàng</h3>
                     <form onSubmit={handleSubmitOrder}>
@@ -233,7 +233,7 @@ const Checkout = () => {
 
                         <div className="mb-6">
                             <label className="block text-gray-700 font-semibold mb-2">Phương thức thanh toán</label>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <label className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${paymentMethod === 'cod' ? 'border-blue-600 bg-blue-50/50 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}>
                                     <input type="radio" name="paymentMethod" value="cod" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} className="mr-3 h-4 w-4 text-blue-600" />
                                     <div>
@@ -271,12 +271,12 @@ const Checkout = () => {
                                             </p>
                                             <p className="text-gray-500">Số lượng: x{item.quantity}</p>
                 </div>
-                <p className="font-semibold">{(item.price * item.quantity).toLocaleString('vi-VN')} $</p>
+                <p className="font-semibold">{(item.price * item.quantity).toLocaleString('en-US')} $</p>
             </div>
         ))}
                                 <div className="border-t pt-3 space-y-2">
-                                    {appliedPromotion && <div className="flex justify-between text-green-600"><span>Giảm giá ({promotionCode}):</span><span>- {appliedPromotion.discount.toLocaleString('vi-VN')} $</span></div>}
-                                    <div className="flex justify-between font-bold text-lg"><span>Tổng cộng:</span><span className="text-red-600">{calculateTotal().toLocaleString('vi-VN')} $</span></div>
+                                    {appliedPromotion && <div className="flex justify-between text-green-600"><span>Giảm giá ({promotionCode}):</span><span>- {appliedPromotion.discount.toLocaleString('en-US')} $</span></div>}
+                                    <div className="flex justify-between font-bold text-lg"><span>Tổng cộng:</span><span className="text-red-600">{calculateTotal().toLocaleString('en-US')} $</span></div>
                                 </div>
                             </div>
                         ) : (<p>Giỏ hàng trống</p>)}

@@ -57,7 +57,7 @@ const ProductItem = ({ product, variants }) => {
                 </div>
 
                 <p className="text-lg font-medium text-red-600 mt-2">
-                    {displayPrice.toLocaleString('vi-VN')} $
+                    {displayPrice.toLocaleString('en-US')} $
                 </p>
             </div>
             

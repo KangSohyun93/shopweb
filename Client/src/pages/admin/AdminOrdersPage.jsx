@@ -42,8 +42,8 @@ const AdminOrdersPage = () => {
   if (error) return <p className="text-center py-10 text-red-600">{error}</p>;
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-4 text-gray-800">Quản lý Đơn hàng</h2>
+    <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md">
+      <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-800">Quản lý Đơn hàng</h2>
 
       <OrderStatusTabs 
         tabs={tabs}

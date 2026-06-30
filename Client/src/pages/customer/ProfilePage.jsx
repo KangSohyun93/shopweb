@@ -226,29 +226,29 @@ const ProfilePage = () => {
     if (loading) return <div className="text-center py-10">Đang tải...</div>;
 
     return (
-        <div className="container mx-auto py-8 px-4">
-            <h2 className="text-3xl font-bold mb-6">Tài khoản của tôi</h2>
+        <div className="container mx-auto py-6 md:py-8 px-4 mt-14 md:mt-16">
+            <h2 className="text-2xl md:text-3xl font-bold mb-6">Tài khoản của tôi</h2>
 
             {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
             {success && <div className="bg-green-100 text-green-700 p-3 rounded mb-4">{success}</div>}
 
             {/* Tabs */}
-            <div className="flex gap-4 mb-6 border-b">
+            <div className="flex gap-2 md:gap-4 mb-6 border-b overflow-x-auto whitespace-nowrap scrollbar-none">
                 <button
                     onClick={() => handleTabChange('profile')}
-                    className={`px-6 py-3 font-semibold ${activeTab === 'profile' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+                    className={`px-4 md:px-6 py-3 font-semibold text-sm md:text-base ${activeTab === 'profile' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
                 >
                     Thông tin cá nhân
                 </button>
                 <button
                     onClick={() => handleTabChange('password')}
-                    className={`px-6 py-3 font-semibold ${activeTab === 'password' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+                    className={`px-4 md:px-6 py-3 font-semibold text-sm md:text-base ${activeTab === 'password' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
                 >
                     Đổi mật khẩu
                 </button>
                 <button
                     onClick={() => handleTabChange('addresses')}
-                    className={`px-6 py-3 font-semibold ${activeTab === 'addresses' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+                    className={`px-4 md:px-6 py-3 font-semibold text-sm md:text-base ${activeTab === 'addresses' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
                 >
                     Địa chỉ giao hàng
                 </button>
@@ -280,7 +280,7 @@ const ProfilePage = () => {
                                 required
                             />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-gray-700 mb-2">Họ</label>
                                 <input

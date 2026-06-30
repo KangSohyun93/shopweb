@@ -238,7 +238,7 @@ const OrderDetailPage = () => {
 
     return (
         <div className="bg-gray-50 min-h-screen">
-            <div className="container mx-auto py-10 px-4">
+            <div className="container mx-auto py-6 md:py-10 px-4 mt-14 md:mt-16">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-3xl font-bold text-gray-800">Chi tiết đơn hàng #{order.order_id}</h2>
                     <Link to="/orders" className="flex items-center gap-2 text-blue-600 hover:underline">
@@ -273,7 +273,7 @@ const OrderDetailPage = () => {
                                                      {item.color && item.color !== 'default' ? `, Màu ${item.color}` : ''}
                                                  </p>
                                                 <p className="text-sm text-gray-500">Số lượng: {item.quantity}</p>
-                                                <p className="font-semibold mt-2">{(item.price * item.quantity).toLocaleString('vi-VN')} $</p>
+                                                <p className="font-semibold mt-2">{(item.price * item.quantity).toLocaleString('en-US')} $</p>
                                                 
                                                 {order.status === 'delivered' && (
                                                     <div className="mt-3">
@@ -436,9 +436,9 @@ const OrderDetailPage = () => {
                         <div className="bg-white p-6 rounded-lg shadow-md">
                              <h3 className="text-xl font-semibold mb-4">Tóm tắt thanh toán</h3>
                              <div className="space-y-2 text-gray-700">
-                                <div className="flex justify-between"><span>Tạm tính:</span><span>{subtotal.toLocaleString('vi-VN')} $</span></div>
-                                {discountAmount > 0 && <div className="flex justify-between text-green-600"><span>Giảm giá ({order.promotion_code}):</span><span>- {discountAmount.toLocaleString('vi-VN')} $</span></div>}
-                                <div className="border-t pt-2 mt-2 flex justify-between font-bold text-lg"><span>Tổng cộng:</span><span className="text-red-600">{order.total_amount.toLocaleString('vi-VN')} $</span></div>
+                                <div className="flex justify-between"><span>Tạm tính:</span><span>{subtotal.toLocaleString('en-US')} $</span></div>
+                                {discountAmount > 0 && <div className="flex justify-between text-green-600"><span>Giảm giá ({order.promotion_code}):</span><span>- {discountAmount.toLocaleString('en-US')} $</span></div>}
+                                <div className="border-t pt-2 mt-2 flex justify-between font-bold text-lg"><span>Tổng cộng:</span><span className="text-red-600">{order.total_amount.toLocaleString('en-US')} $</span></div>
                              </div>
                         </div>
                     </div>

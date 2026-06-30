@@ -152,7 +152,7 @@ const EditRow = ({
                         { label: 'SKU', field: 'sku', type: 'text', placeholder: 'SKU-001' },
                         { label: 'Màu sắc', field: 'color', type: 'text', placeholder: 'red, #FF0000…' },
                         { label: 'Kích cỡ', field: 'size', type: 'text', placeholder: 'S, M, L, 42…' },
-                        { label: 'Giá (VND) *', field: 'price', type: 'number', placeholder: '0', min: 0 },
+                        { label: 'Giá ($) *', field: 'price', type: 'number', placeholder: '0', min: 0 },
                         { label: 'Tồn kho *', field: 'stock_quantity', type: 'number', placeholder: '0', min: 0 },
                         { label: 'Khối lượng (g)', field: 'weight', type: 'number', placeholder: '500', min: 0 },
                       ].map(({ label, field, type, placeholder, min }) => (
@@ -245,8 +245,8 @@ const getPriceRange = (variants) => {
   if (prices.length === 0) return '0';
   const min = Math.min(...prices);
   const max = Math.max(...prices);
-  if (min === max) return min.toLocaleString('vi-VN');
-  return `${min.toLocaleString('vi-VN')} – ${max.toLocaleString('vi-VN')}`;
+  if (min === max) return min.toLocaleString('en-US');
+  return `${min.toLocaleString('en-US')} – ${max.toLocaleString('en-US')}`;
 };
 
 // ─── Main component ────────────────────────────────────────────────────────────
@@ -455,6 +455,7 @@ const AdminProductsTab = () => {
     }
   };
 
+
   // ─── Filter + paginate ────────────────────────────────────────────────────
   const filteredProducts = products.filter(p => {
     const matchSearch = !searchTerm ||
@@ -477,8 +478,8 @@ const AdminProductsTab = () => {
   if (loading) return <div className="p-8 text-center text-gray-500">Đang tải...</div>;
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-bold mb-6 text-gray-900">Quản lý Sản phẩm</h2>
+    <div className="p-3 sm:p-6">
+      <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-gray-900">Quản lý Sản phẩm</h2>
 
       {error && (
         <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-lg mb-4 flex justify-between">
@@ -538,8 +539,118 @@ const AdminProductsTab = () => {
         </div>
       )}
 
-      {/* ── Data Table ── */}
-      <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
+      {/* ── Mobile Card Layout ── */}
+      <div className="md:hidden space-y-3">
+        {currentProducts.length === 0 && (
+          <div className="text-center text-gray-400 py-12">Không có sản phẩm nào</div>
+        )}
+        {currentProducts.map(product => {
+          const isEditing = editMode === product.product_id;
+          const variants = product.variants || [];
+          const categoryName = categories.find(c => c.category_id === product.category_id)?.name || '—';
+          const brandName = brands.find(b => b.brand_id === product.brand_id)?.name || '—';
+
+          if (isEditing) {
+            return (
+              <div key={product.product_id} className="bg-blue-50 rounded-xl border border-blue-200 shadow-sm overflow-hidden">
+                <table className="w-full"><tbody>
+                  <EditRow
+                    product={product}
+                    editedItems={editedItems}
+                    categories={categories}
+                    brands={brands}
+                    handleChange={handleChange}
+                    handleCancelEdit={handleCancelEdit}
+                    handleSaveProduct={handleSaveProduct}
+                    handleVariantChange={handleVariantChange}
+                    handleAddVariant={handleAddVariant}
+                    handleRemoveVariant={handleRemoveVariant}
+                    handleImageUpload={handleImageUpload}
+                    handleAdditionalImageDelete={handleAdditionalImageDelete}
+                  />
+                </tbody></table>
+              </div>
+            );
+          }
+
+          return (
+            <div key={product.product_id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-3">
+              {/* Product header */}
+              <div className="flex items-start gap-3 mb-2">
+                <div className="flex-shrink-0">
+                  {product.primary_image_url ? (
+                    <img
+                      src={product.primary_image_url}
+                      alt={product.name}
+                      className="w-14 h-14 object-cover rounded-lg border border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-gray-300 text-lg">
+                      📦
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="inline-block text-[10px] font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded mb-0.5">
+                    #{product.product_id}
+                  </span>
+                  <p className="font-semibold text-gray-800 text-sm leading-tight line-clamp-2">
+                    {product.name || <span className="text-gray-400 italic">Chưa đặt tên</span>}
+                  </p>
+                </div>
+              </div>
+
+              {/* Info grid */}
+              <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                <div>
+                  <span className="text-gray-400 block">Giá</span>
+                  <span className="font-semibold text-blue-600">{getPriceRange(variants)} $</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block">Tồn kho</span>
+                  <span className="font-semibold text-green-600">{getTotalStock(variants)}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block">Danh mục</span>
+                  <span className="inline-block text-indigo-700 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded text-[10px] font-medium">
+                    {categoryName}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block">Thương hiệu</span>
+                  <span className="inline-block text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded text-[10px] font-medium">
+                    {brandName}
+                  </span>
+                </div>
+              </div>
+
+              {/* Variants count */}
+              {variants.length > 0 && (
+                <p className="text-[10px] text-gray-400 mb-2">{variants.length} biến thể</p>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2 justify-end pt-2 border-t border-gray-100">
+                <button
+                  onClick={() => handleEdit(product)}
+                  className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600"
+                >
+                  ✏️ Sửa
+                </button>
+                <button
+                  onClick={() => handleDeleteProduct(product.product_id)}
+                  className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-medium hover:bg-red-600"
+                >
+                  🗑️ Xóa
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Desktop Data Table ── */}
+      <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
         <table className="w-full text-sm border-collapse text-left">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
@@ -558,7 +669,7 @@ const AdminProductsTab = () => {
               <th className="px-3 py-3 text-left font-semibold text-gray-600 w-28 hidden md:table-cell">Mã SKU</th>
               <th className="px-3 py-3 text-left font-semibold text-gray-600 w-24 hidden md:table-cell">Màu sắc</th>
               <th className="px-3 py-3 text-left font-semibold text-gray-600 w-20 hidden md:table-cell">Cỡ</th>
-              <th className="px-3 py-3 text-right font-semibold text-gray-600 w-32 hidden md:table-cell">Giá (VND)</th>
+              <th className="px-3 py-3 text-right font-semibold text-gray-600 w-32 hidden md:table-cell">Giá ($)</th>
               <th className="px-3 py-3 text-right font-semibold text-gray-600 w-20 hidden md:table-cell">Kho</th>
               <th className="px-3 py-3 text-right font-semibold text-gray-600 w-24 hidden md:table-cell">KL (g)</th>
               <th className="px-3 py-3 text-center font-semibold text-gray-600 w-24 hidden md:table-cell">Thao tác</th>
@@ -648,7 +759,7 @@ const AdminProductsTab = () => {
                                 )}
                                 {/* Mobile range details */}
                                 <div className="md:hidden mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                                  <span className="text-gray-500 font-medium">Giá: <strong className="text-blue-600 font-semibold">{getPriceRange(product.variants)} đ</strong></span>
+                                  <span className="text-gray-500 font-medium">Giá: <strong className="text-blue-600 font-semibold">{getPriceRange(product.variants)} $</strong></span>
                                   <span className="text-gray-500 font-medium">Kho: <strong className="text-green-600 font-semibold">{getTotalStock(product.variants)}</strong></span>
                                 </div>
                               </div>
@@ -689,7 +800,7 @@ const AdminProductsTab = () => {
                             {variant.size || '—'}
                           </td>
                           <td className="px-3 py-2.5 align-middle border-r border-gray-100 text-right text-blue-600 font-medium text-xs hidden md:table-cell">
-                            {parseFloat(variant.price || 0).toLocaleString('vi-VN')}
+                            {parseFloat(variant.price || 0).toLocaleString('en-US')} $
                           </td>
                           <td className="px-3 py-2.5 align-middle border-r border-gray-100 text-right text-xs hidden md:table-cell">
                             <StockBadge qty={variant.stock_quantity} />
@@ -778,7 +889,7 @@ const AdminProductsTab = () => {
                                   <div key={idx} className="p-3 hover:bg-gray-50 transition-colors">
                                     <div className="flex justify-between items-center mb-1">
                                       <span className="font-mono text-xs font-bold text-gray-700">SKU: {v.sku || '—'}</span>
-                                      <span className="text-sm font-bold text-blue-600">{parseFloat(v.price || 0).toLocaleString('vi-VN')} đ</span>
+                                      <span className="text-sm font-bold text-blue-600">{parseFloat(v.price || 0).toLocaleString('en-US')} $</span>
                                     </div>
                                     <div className="flex justify-between text-xs text-gray-500">
                                       <span className="flex items-center gap-1.5">
@@ -829,13 +940,13 @@ const AdminProductsTab = () => {
 
       {/* ── Pagination ── */}
       {totalPages > 1 && (
-        <div className="mt-4 flex justify-between items-center">
+        <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-3">
           <p className="text-sm text-gray-500">
             Trang <span className="font-semibold">{currentPage}</span> / {totalPages}
             {' · '}
             {filteredProducts.length} sản phẩm
           </p>
-          <div className="flex gap-2">
+          <div className="flex gap-1 sm:gap-2 flex-wrap justify-center">
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}

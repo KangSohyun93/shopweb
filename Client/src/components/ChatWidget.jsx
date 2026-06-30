@@ -296,7 +296,7 @@ const ChatWidget = () => {
  
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-96 h-[500px] bg-white rounded-lg shadow-2xl z-50 flex flex-col">
+        <div className="fixed bottom-20 sm:bottom-24 right-4 sm:right-6 w-[calc(100vw-32px)] sm:w-96 h-[450px] sm:h-[500px] bg-white rounded-lg shadow-2xl z-50 flex flex-col">
           {/* Header */}
           <div className="bg-blue-600 text-white p-4 rounded-t-lg flex justify-between items-center">
             <div>

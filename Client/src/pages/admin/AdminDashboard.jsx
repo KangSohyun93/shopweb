@@ -16,11 +16,11 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Tab Navigation */}
-      <div className="border-b border-gray-200 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-4">
+      <div className="border-b border-gray-200 bg-white overflow-x-auto scrollbar-none">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-1 sm:gap-4 whitespace-nowrap">
           <button
             onClick={() => setTab('products')}
-            className={`py-3 px-4 font-medium border-b-2 ${
+            className={`py-3 px-3 sm:px-4 font-medium text-sm sm:text-base border-b-2 ${
               tab === 'products'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-600 hover:text-gray-900'
@@ -31,7 +31,7 @@ const AdminDashboard = () => {
 
           <button
             onClick={() => setTab('promotions')}
-            className={`py-3 px-4 font-medium border-b-2 ${
+            className={`py-3 px-3 sm:px-4 font-medium text-sm sm:text-base border-b-2 ${
               tab === 'promotions'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-600 hover:text-gray-900'
@@ -42,7 +42,7 @@ const AdminDashboard = () => {
 
           <button
             onClick={() => setTab('categories-brands')}
-            className={`py-3 px-4 font-medium border-b-2 ${
+            className={`py-3 px-3 sm:px-4 font-medium text-sm sm:text-base border-b-2 ${
               tab === 'categories-brands'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-600 hover:text-gray-900'

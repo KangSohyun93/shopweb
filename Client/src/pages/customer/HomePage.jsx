@@ -178,7 +178,7 @@ const HomePage = () => {
     <>
       {/* BANNER - LẤY TỪ DATABASE (Auto Carousel - 3s) */}
       {activeBanners.length > 0 ? (
-        <div className="mt-16 bg-gray-900 text-white overflow-hidden">
+        <div className="mt-14 md:mt-16 bg-gray-900 text-white overflow-hidden">
           {(() => {
             const banner = activeBanners[currentBannerIndex % activeBanners.length];
             
@@ -207,7 +207,7 @@ const HomePage = () => {
               >
                 {/* Banner với ảnh nền */}
                 {banner.image_url ? (
-                  <div className="relative h-96 md:h-[500px] transition-opacity duration-500 bg-gray-200">
+                  <div className="relative h-64 sm:h-80 md:h-[420px] lg:h-[500px] transition-opacity duration-500 bg-gray-200">
                     <img 
                       src={banner.image_url} 
                       alt={banner.title} 
@@ -218,7 +218,7 @@ const HomePage = () => {
                     <div className="absolute inset-0 bg-black opacity-40"></div>
                     <div className="absolute inset-0 flex items-center">
                       <div className="container mx-auto px-4">
-                        <h1 className="text-4xl md:text-6xl font-extrabold mb-4">{banner.title}</h1>
+                        <h1 className="text-2xl sm:text-4xl md:text-6xl font-extrabold mb-3 md:mb-4">{banner.title}</h1>
                         {banner.description && <p className="text-lg text-gray-200 mb-6">{banner.description}</p>}
                         {banner.link_url && (
                           <button 
@@ -273,10 +273,10 @@ const HomePage = () => {
         </div>
       ) : (
         /* Default banner nếu không có banner từ database */
-        <div className="mt-16 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white">
+        <div className="mt-14 md:mt-16 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white">
           <div className="container mx-auto px-4 py-20 flex flex-col md:flex-row items-center justify-between">
             <div className="md:w-1/2 mb-10 md:mb-0">
-              <h1 className="text-5xl md:text-6xl font-extrabold mb-4 leading-tight">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold mb-4 leading-tight">
                 Khám Phá <span className="text-red-500">Thời Trang</span> Của Bạn
               </h1>
               <p className="text-lg text-gray-300 mb-6">Bộ sưu tập mới nhất với phong cách hiện đại và chất lượng cao</p>
@@ -369,7 +369,7 @@ const HomePage = () => {
               </h2>
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
               {personalizedProducts.map((product, index) => {
                 // 📌 Gắn ref vào sản phẩm cuối cùng để trigger infinite scroll
                 const isLastElement = personalizedProducts.length === index + 1;

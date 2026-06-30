@@ -127,7 +127,7 @@ const ProductDetail = () => {
 
     return (
         <div className="bg-gray-50 min-h-screen">
-            <div className="container mx-auto py-12 px-4">
+            <div className="container mx-auto py-8 px-4 mt-14 md:mt-16">
                 <div className="mb-8">
                     <button
                         onClick={() => navigate(-1)} 

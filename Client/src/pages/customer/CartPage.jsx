@@ -200,7 +200,7 @@ const CartPage = () => {
     };
 
     return (
-        <div className="container mx-auto py-10 px-4">
+        <div className="container mx-auto py-8 md:py-10 px-4 mt-14 md:mt-16">
             <h2 className="text-3xl font-extrabold mb-8 text-[#22336b] text-center">Giỏ hàng của bạn</h2>
             {loading ? (
                 <p className="text-center text-lg">Đang tải...</p>
@@ -274,7 +274,7 @@ const CartPage = () => {
                                 </div>
                                 <div className="flex flex-col items-end min-w-[120px]">
                                     <p className="text-xl text-gray-800 font-semibold">
-                                        {Number(item.price).toLocaleString('vi-VN')} $
+                                        {Number(item.price).toLocaleString('en-US')} $
                                     </p>
                                     <button onClick={() => handleDeleteItem(item.cart_item_id)} className="text-red-500 hover:text-red-700 mt-4 text-sm underline">Xóa</button>
                                 </div>
@@ -282,7 +282,7 @@ const CartPage = () => {
                         ))}
                     </div>
                     <div className="mt-10 flex flex-col md:flex-row items-center justify-between gap-4">
-                        <div className="text-xl font-bold text-[#22336b]">Tổng cộng: <span className="text-[#bfa14a]">{calculateTotal().toLocaleString('vi-VN')} $</span></div>
+                        <div className="text-xl font-bold text-[#22336b]">Tổng cộng: <span className="text-[#bfa14a]">{calculateTotal().toLocaleString('en-US')} $</span></div>
                         <button 
                             onClick={handleCheckout}
                             disabled={selectedItems.size === 0}
@@ -302,7 +302,7 @@ const CartPage = () => {
                         <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded ml-2">Gợi ý bởi AI</span>
                     </div>
                     
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
                         {recommendations.map((rec, index) => {
                             // 📌 Gắn ref vào sản phẩm gợi ý cuối cùng để trigger infinite scroll
                             const isLastElement = recommendations.length === index + 1;

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 
@@ -82,21 +82,21 @@ const CategoryPage = () => {
   if (loading) return <div className="text-center py-32 mt-16 text-gray-500">Đang tải bộ sưu tập...</div>;
 
   return (
-    <div className="min-h-screen bg-white mt-16">
+    <div className="min-h-screen bg-white mt-14 md:mt-16">
       {/* Header with Filter Buttons */}
-      <div className="bg-gray-900 text-white py-12">
+      <div className="bg-gray-900 text-white py-8 md:py-12">
         <div className="container mx-auto px-4">
-          <div className="flex items-start gap-8">
-            <h1 className="text-4xl md:text-5xl font-extrabold uppercase tracking-wider whitespace-nowrap flex-shrink-0">
+          <div className="flex flex-col gap-4">
+            <h1 className="text-3xl md:text-5xl font-extrabold uppercase tracking-wider">
               {parentCategory?.name || 'Danh mục'}
             </h1>
             
-            {/* Filter buttons - bên phải heading */}
-            <div className="flex flex-wrap gap-2 items-center">
+            {/* Filter buttons - wrap on all screens */}
+            <div className="flex flex-wrap gap-2">
               {/* Nút "Tất cả" */}
               <button
                 onClick={() => setSelectedChildId(null)}
-                className={`px-4 py-2 rounded text-sm font-medium transition ${
+                className={`px-3 py-1.5 md:px-4 md:py-2 rounded text-xs md:text-sm font-medium transition ${
                   selectedChildId === null
                     ? 'bg-red-600 text-white'
                     : 'bg-gray-700 text-gray-100 hover:bg-gray-600'
@@ -111,7 +111,7 @@ const CategoryPage = () => {
                   <button
                     key={child.category_id}
                     onClick={() => setSelectedChildId(child.category_id)}
-                    className={`px-4 py-2 rounded text-sm font-medium transition ${
+                    className={`px-3 py-1.5 md:px-4 md:py-2 rounded text-xs md:text-sm font-medium transition ${
                       selectedChildId === child.category_id
                         ? 'bg-red-600 text-white'
                         : 'bg-gray-700 text-gray-100 hover:bg-gray-600'
@@ -142,7 +142,7 @@ const CategoryPage = () => {
             </div>
 
             {/* Lưới sản phẩm */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
               {products.map(product => (
                 <Link 
                   key={product.product_id} 

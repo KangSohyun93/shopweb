@@ -144,7 +144,7 @@ const SearchResultsPage = () => {
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      <div className="container mx-auto py-8 px-4">
+      <div className="container mx-auto py-6 md:py-8 px-4 mt-14 md:mt-16">
         {/* Header */}
         <div className="mb-6">
           <Link to="/" className="inline-flex items-center text-blue-600 hover:text-blue-800 mb-4">
@@ -341,7 +341,7 @@ const SearchResultsPage = () => {
             ) : (
               <>
                 {/* Products Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
                   {currentResults.map((product) => (
                     <Link
                       key={product.product_id}
