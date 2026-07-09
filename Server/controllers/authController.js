@@ -9,7 +9,7 @@ const authController = {
   register: async (req, res) => {
     try {
       const { username, email, password, first_name, last_name, phone } = req.body;
-      console.log('📝 Bắt đầu đăng ký cho email:', email);
+      console.log('Bắt đầu đăng ký cho email:', email);
 
       const existingUser = await User.findByEmail(email);
       if (existingUser) return res.status(400).json({ error: 'Email already exists' });
@@ -19,8 +19,8 @@ const authController = {
       const expiresDate = new Date(now.getTime() + 10 * 60 * 1000);
       const otp_expires = expiresDate.toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).replace('T', ' ');
 
-      console.log('🔑 OTP được tạo:', otp_code);
-      console.log('⏰ Thời gian hết hạn (Local VN):', otp_expires);
+      console.log('OTP được tạo:', otp_code);
+      console.log('Thời gian hết hạn (Local VN):', otp_expires);
 
       const userId = await User.create({
         username, email, password, first_name, last_name, phone, otp_code, otp_expires
@@ -35,7 +35,7 @@ const authController = {
         subject: 'Xác nhận tài khoản - Mã OTP',
         text: `Mã OTP của bạn là: ${otp_code}. Mã này sẽ hết hạn trong 10 phút.`
       }).then(() => {
-        console.log('📧 Email OTP đã được gửi đến:', email);
+        console.log(' Email OTP đã được gửi đến:', email);
       }).catch(err => {
         console.error('❌ Lỗi gửi email:', err);
       });
@@ -50,7 +50,7 @@ const authController = {
   verifyOTP: async (req, res) => {
     try {
       const { email, otp } = req.body;
-      console.log('🔍 Xác thực OTP cho email:', email, '| OTP nhập:', otp);
+      console.log(' Xác thực OTP cho email:', email, '| OTP nhập:', otp);
       
       const user = await User.findByEmail(email);
       if (!user) return res.status(404).json({ error: 'Người dùng không tồn tại' });
@@ -82,7 +82,7 @@ const authController = {
   resendOTP: async (req, res) => {
     try {
       const { email } = req.body;
-      console.log('🔄 Yêu cầu gửi lại OTP cho:', email);
+      console.log('Yêu cầu gửi lại OTP cho:', email);
 
       const user = await User.findByEmail(email);
       if (!user) return res.status(404).json({ error: 'Email không tồn tại' });
@@ -157,7 +157,7 @@ const authController = {
   forgotPassword: async (req, res) => {
     try {
       const { email } = req.body;
-      console.log('🔐 Yêu cầu quên mật khẩu cho:', email);
+      console.log('Yêu cầu quên mật khẩu cho:', email);
       
       const user = await User.findByEmail(email);
       if (!user) return res.status(404).json({ error: 'Email không tồn tại' });

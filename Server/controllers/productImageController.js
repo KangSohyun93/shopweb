@@ -12,7 +12,7 @@ const productImageController = {
 
       const result = await new Promise((resolve, reject) => {
         cloudinary.uploader.upload_stream(
-          { folder: 'shopweb',  /*upload_preset: 'shopweb-upload'*/ },
+          { folder: 'shopweb',  },
           (error, result) => {
             if (error) reject(error);
             else resolve(result);
