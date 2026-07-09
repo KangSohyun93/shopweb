@@ -162,7 +162,6 @@ io.on('connection', (socket) => {
       
       // Emit to recipient (but NOT to sender again)
       if (senderType === 'user') {
-        // Notify all admins
         io.to('admins').emit('chat:new-message', {
           ...newMessage,
           conversationId,
@@ -211,7 +210,6 @@ io.on('connection', (socket) => {
     const { conversationId, isTyping } = data;
     
     if (socket.isAdmin) {
-      // Notify user (supports multiple tabs/devices)
       const Chat = require('./models/chat');
       Chat.getConversationById(conversationId).then(conversation => {
         io.to(`user:${conversation.user_id}`).emit('chat:typing', { conversationId, isTyping, isAdmin: true });

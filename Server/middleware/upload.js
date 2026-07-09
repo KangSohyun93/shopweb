@@ -1,12 +1,11 @@
 const multer = require('multer');
 const path = require('path');
 
-// Lưu file vào memory thay vì disk
 const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5000000 }, // Tăng lên 5MB cho banner
+  limits: { fileSize: 5000000 }, 
   fileFilter: (req, file, cb) => {
     const filetypes = /jpeg|jpg|png|gif|webp/;
     const extname = filetypes.test(path.extname(file.originalname).toLowerCase());

@@ -299,7 +299,6 @@ const CartPage = () => {
                 <div className="mt-16 pt-8 mx-auto max-w-6xl">
                     <div className="flex items-center gap-2 mb-6">
                         <h2 className="text-2xl font-bold text-gray-800">Bạn có thể thích</h2>
-                        <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded ml-2">Gợi ý bởi AI</span>
                     </div>
                     
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">

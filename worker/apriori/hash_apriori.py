@@ -19,19 +19,16 @@ def run(transactions, min_support, bucket_size=100000):
         for item in transaction:
             item_counts[item] = item_counts.get(item, 0) + 1
         
-        # Băm các cặp đôi thực tế xuất hiện trong giỏ hàng
         if len(transaction) >= 2:
             for pair in combinations(sorted(transaction), 2):
                 hash_val = hash(pair) % bucket_size
                 hash_table[hash_val] += 1
                 
-    # Lọc L1
     current_l = {frozenset([item]): count for item, count in item_counts.items() 
                  if count >= min_support}
     all_frequent_itemsets.update(current_l)
     num_candidates += len(item_counts)
     
-    # 2. Sinh C2 sử dụng Hash Table Pruning
     items_l1 = sorted(list(current_l.keys()))
     c2_candidates = []
     

@@ -1,7 +1,6 @@
 /**
  * @file databaseService.js
  * @description Service xử lý tất cả các thao tác database
- * Single Responsibility: Chỉ chịu trách nhiệm tương tác với database
  * @category Service
  */
 
@@ -9,8 +8,8 @@ const db = require('../config/db');
 
 /**
  * Tìm sản phẩm theo tên
- * @param {string} productName - Tên sản phẩm
- * @returns {Promise<number|null>} Product ID hoặc null
+ * @param {string} productName
+ * @returns {Promise<number|null>} 
  */
 async function getProductIdByName(productName) {
   try {
@@ -42,7 +41,6 @@ async function getProductImageCount(productId) {
 }
 
 /**
- * Thêm ảnh mới vào product_images
  * @param {number} productId - Product ID
  * @param {string} imageUrl - URL của ảnh
  * @param {boolean} isPrimary - Có phải ảnh đại diện không

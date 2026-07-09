@@ -1,11 +1,7 @@
 const db = require('../config/db');
 const redisClient = require('../config/redis');
 
-// ═══════════════════════════════════════════════════════════
-// HELPER FUNCTIONS
-// ═══════════════════════════════════════════════════════════
-
-// 🔍 Đọc toàn bộ cấu hình từ database
+//Đọc toàn bộ cấu hình từ database
 const getSettings = async () => {
     const [rows] = await db.query('SELECT setting_key, setting_value FROM ai_settings');
     const settings = {};
@@ -13,7 +9,7 @@ const getSettings = async () => {
     return settings;
 };
 
-// 🛒 Lấy danh sách product_id trong giỏ hàng của user
+// Lấy danh sách product_id trong giỏ hàng của user
 const getCartProductIds = async (user_id) => {
     if (!user_id) return [];
     try {
@@ -31,7 +27,7 @@ const getCartProductIds = async (user_id) => {
     }
 };
 
-// 🔴 Tra Redis recom:<product_id> cho nhiều sản phẩm. Nếu Redis lỗi hoặc trống, tự động fallback truy vấn từ MySQL bảng ai_rules
+// Tra Redis recom:<product_id> cho nhiều sản phẩm. Nếu Redis lỗi hoặc trống, tự động fallback truy vấn từ MySQL bảng ai_rules
 const getRedisRecsForProducts = async (productIds, excludeIds = []) => {
     let allRecs = [];
     for (const pid of productIds) {
@@ -44,10 +40,8 @@ const getRedisRecsForProducts = async (productIds, excludeIds = []) => {
             console.error(`⚠️ Lỗi đọc Redis cho sản phẩm ${pid}:`, redisErr.message);
         }
 
-        // Nếu Redis bị lỗi hoặc không có dữ liệu cache, thực hiện fallback đọc từ MySQL
         if (!redisSuccess || !recommendedIdsStr || recommendedIdsStr.length === 0) {
             try {
-                // Truy vấn luật kết hợp trực tiếp từ bảng ai_rules
                 const [dbRules] = await db.query(
                     `SELECT consequent_id FROM ai_rules WHERE antecedent_id = ? ORDER BY confidence DESC`,
                     [pid]
@@ -73,7 +67,7 @@ const getRedisRecsForProducts = async (productIds, excludeIds = []) => {
     return allRecs;
 };
 
-// 📐 Tính độ tương đồng Jaccard
+// Tính độ tương đồng Jaccard
 const calculateJaccardSimilarity = (userProfileTags, productTags) => {
     const intersection = userProfileTags.filter(tag => productTags.includes(tag));
     const union = [...new Set([...userProfileTags, ...productTags])];
@@ -101,7 +95,7 @@ const filterInStock = async (productIds) => {
     }
 };
 
-// 🔀 Thuật toán trộn máng động
+// Thuật toán trộn máng động
 const blendRecommendations = (relevantList, trendingList, relevantCount = 4, trendingCount = 1) => {
     const blended = [];
     let rIdx = 0, tIdx = 0;
@@ -120,7 +114,7 @@ const blendRecommendations = (relevantList, trendingList, relevantCount = 4, tre
     return blended;
 };
 
-// 🆕 Chèn sản phẩm mới (New Arrivals Boost)
+// Chèn sản phẩm mới (New Arrivals Boost)
 const injectNewArrivals = async (blendedIds, settings, excludeIds = []) => {
     if (settings['new_arrivals_boost_enabled'] === 'false') return blendedIds;
     const interval = parseInt(settings['new_arrivals_interval'], 10) || 10;
@@ -153,7 +147,7 @@ const injectNewArrivals = async (blendedIds, settings, excludeIds = []) => {
     }
 };
 
-// 📦 Lấy chi tiết sản phẩm theo danh sách ID (giữ đúng thứ tự)
+// Lấy chi tiết sản phẩm theo danh sách ID (giữ đúng thứ tự)
 const getProductDetails = async (pagedIds) => {
     if (pagedIds.length === 0) return [];
     const [products] = await db.query(`
@@ -169,7 +163,7 @@ const getProductDetails = async (pagedIds) => {
     return pagedIds.map(id => products.find(p => p.product_id === id)).filter(Boolean);
 };
 
-// 📈 Lấy danh sách trending (bán chạy nhất), loại trừ danh sách chỉ định
+// Lấy danh sách trending (bán chạy nhất), loại trừ danh sách chỉ định
 const getTrendingIds = async (trendingLimit, excludeIds = []) => {
     let query, queryParams;
     if (excludeIds.length > 0) {
@@ -198,16 +192,6 @@ const getTrendingIds = async (trendingLimit, excludeIds = []) => {
     return rows.map(p => p.product_id);
 };
 
-
-// ═══════════════════════════════════════════════════════════
-// API 1: GỢI Ý TRANG CHI TIẾT SẢN PHẨM
-// Tầng 1: Redis recom:<SP đang xem>   — luôn bật
-// Tầng 2: Redis từ giỏ hàng          — cấu hình: product_use_cart_redis
-// Tầng 3: Jaccard cùng danh mục      — cấu hình: product_use_category_jaccard
-// Tầng 4: Trending                   — luôn bật (fallback)
-// → Blend (product_blend_relevant_count : product_blend_trending_count)
-// → Chèn New Arrivals
-// ═══════════════════════════════════════════════════════════
 exports.getRecommendations = async (req, res) => {
     try {
         const { product_id } = req.params;
@@ -316,11 +300,6 @@ exports.getRecommendations = async (req, res) => {
 
 // ═══════════════════════════════════════════════════════════
 // API 2: GỢI Ý TRANG CHỦ
-// Tầng 0: Redis từ giỏ hàng          — cấu hình: homepage_use_cart_redis
-// Tầng 1: Jaccard cá nhân hóa        — cấu hình: recommendation_method = hybrid
-// Tầng 2: Trending                   — luôn bật (fallback)
-// → Blend (homepage_blend_relevant_count : homepage_blend_trending_count)
-// → Chèn New Arrivals
 // ═══════════════════════════════════════════════════════════
 exports.getHomepageRecommendations = async (req, res) => {
     try {
@@ -431,10 +410,6 @@ exports.getHomepageRecommendations = async (req, res) => {
 
 // ═══════════════════════════════════════════════════════════
 // API 3: GỢI Ý TRANG GIỎ HÀNG
-// Tầng 1: Redis từ toàn bộ giỏ hàng  — luôn bật
-// Tầng 2: Trending                   — luôn bật (fallback)
-// → Blend (cart_blend_relevant_count : cart_blend_trending_count)
-// → Chèn New Arrivals
 // ═══════════════════════════════════════════════════════════
 exports.getCartRecommendations = async (req, res) => {
     try {

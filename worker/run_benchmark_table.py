@@ -1,6 +1,5 @@
 """
 Script benchmark: do thoi gian 7 thuat toan x 3 quy mo du lieu
-Chay: python run_benchmark_table.py
 """
 import sys, random, time, os, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')

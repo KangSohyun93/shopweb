@@ -12,13 +12,11 @@ class FPNode:
 def run(transactions, min_support):
     start_time = time.time()
     
-    # 1. Đếm tần suất xuất hiện
     header_table = defaultdict(int)
     for t in transactions:
         for item in t:
             header_table[item] += 1
             
-    # Lọc bỏ các phần tử không phổ biến
     header_table = {k: v for k, v in header_table.items() if v >= min_support}
     if not header_table: return {}, {"runtime": time.time()-start_time, "num_candidates": 0, "num_frequent_itemsets": 0}
     

@@ -86,14 +86,14 @@ const AIRulesDashboard = () => {
   const [totalRules, setTotalRules] = useState(0);
   const [rulesLimit, setRulesLimit] = useState(10);
 
-  // ── Tab: Trang chủ ────────────────────────────────────────
+  // ── Tab: Trang chủ ────
   const [homepageUseCartRedis, setHomepageUseCartRedis] = useState(true);
   const [homepageUseTrending, setHomepageUseTrending] = useState(true);
   const [homepageRecMethod, setHomepageRecMethod] = useState('hybrid');
   const [homepageBlendRelevant, setHomepageBlendRelevant] = useState(4);
   const [homepageBlendTrending, setHomepageBlendTrending] = useState(1);
 
-  // ── Tab: Chi tiết sản phẩm ────────────────────────────────
+  // ── Tab: Chi tiết sản phẩm ──
   const [productUseItemRedis, setProductUseItemRedis] = useState(true);
   const [productUseCartRedis, setProductUseCartRedis] = useState(true);
   const [productUseCategoryJaccard, setProductUseCategoryJaccard] = useState(true);
@@ -101,13 +101,13 @@ const AIRulesDashboard = () => {
   const [productBlendRelevant, setProductBlendRelevant] = useState(4);
   const [productBlendTrending, setProductBlendTrending] = useState(1);
 
-  // ── Tab: Giỏ hàng ─────────────────────────────────────────
+  // ── Tab: Giỏ hàng ──────
   const [cartUseRedis, setCartUseRedis] = useState(true);
   const [cartUseTrending, setCartUseTrending] = useState(true);
   const [cartBlendRelevant, setCartBlendRelevant] = useState(4);
   const [cartBlendTrending, setCartBlendTrending] = useState(1);
 
-  // ── Tab: Toàn cục ─────────────────────────────────────────
+  // ── Tab: Toàn cục ───
   const [activeAlgorithm, setActiveAlgorithm] = useState('fpgrowth');
   const [lastMiningStats, setLastMiningStats] = useState({});
   const [minSupportCount, setMinSupportCount] = useState(2);
@@ -331,30 +331,25 @@ const AIRulesDashboard = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     <div className="space-y-2 p-4 rounded-xl bg-gray-50 border border-gray-100 flex flex-col justify-between">
                       <div>
-                        <p className="text-xs font-bold text-gray-600">Redis từ giỏ hàng (Tầng 0)</p>
+                        <p className="text-xs font-bold text-gray-600">Redis từ giỏ hàng (Tầng 1)</p>
                         <p className="text-xs text-gray-400 mb-2">Gợi ý từ giỏ hàng (Association Rules)</p>
                       </div>
                       <Toggle value={homepageUseCartRedis} onChange={setHomepageUseCartRedis} color="indigo" />
                     </div>
                     <div className="space-y-2 p-4 rounded-xl bg-gray-50 border border-gray-100 flex flex-col justify-between">
-                      <div>
-                        <p className="text-xs font-bold text-gray-600">Jaccard cá nhân hóa (Tầng 1)</p>
-                        <p className="text-xs text-gray-400 mb-2">Cá nhân hóa theo danh mục lịch sử</p>
-                      </div>
-                      <div className="space-y-1">
-                        <select
-                          value={homepageRecMethod}
-                          onChange={e => setHomepageRecMethod(e.target.value)}
-                          className="w-full border border-gray-200 rounded-xl px-2 py-1.5 outline-none text-gray-800 bg-white focus:border-indigo-400 text-xs"
-                        >
-                          <option value="hybrid">Bật — Jaccard + Bán chạy</option>
-                          <option value="trending">Tắt — Chỉ Bán chạy</option>
-                        </select>
-                      </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-600">Jaccard cá nhân hóa (Tầng 2)</p>
+                      <p className="text-xs text-gray-400 mb-2">Cá nhân hóa theo danh mục lịch sử</p>
                     </div>
+                    <Toggle 
+                      value={homepageRecMethod === 'hybrid'} 
+                      onChange={(val) => setHomepageRecMethod(val ? 'hybrid' : 'trending')} 
+                      color="indigo" 
+                    />
+                  </div>
                     <div className="space-y-2 p-4 rounded-xl bg-gray-50 border border-gray-100 flex flex-col justify-between">
                       <div>
-                        <p className="text-xs font-bold text-gray-600">Bán chạy/Xu hướng (Tầng 2)</p>
+                        <p className="text-xs font-bold text-gray-600">Bán chạy/Xu hướng (Tầng 3)</p>
                         <p className="text-xs text-gray-400 mb-2">Sử dụng sản phẩm bán chạy làm fallback</p>
                       </div>
                       <Toggle value={homepageUseTrending} onChange={setHomepageUseTrending} color="indigo" />

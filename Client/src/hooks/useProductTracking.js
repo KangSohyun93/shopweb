@@ -4,7 +4,7 @@ import axios from 'axios';
 const useProductTracking = (productId, categoryId) => {
     const hoverTimerRef = useRef(null);
 
-    // 📊 TRACKING: Ghi nhận thời gian dừng lại khi rời khỏi trang
+    // TRACKING: Ghi nhận thời gian dừng lại khi rời khỏi trang
     useEffect(() => {
         const enterTime = Date.now();
         

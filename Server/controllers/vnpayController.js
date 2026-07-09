@@ -2,10 +2,6 @@ const crypto = require('crypto');
 const db = require('../config/db');
 
 // ─── Hàm tiện ích ──────────────────────────────────────────────────────────
-
-/**
- * Sắp xếp object theo key và encode thành query string (chuẩn VNPay)
- */
 function sortObject(obj) {
     const sorted = {};
     const keys = Object.keys(obj).sort();
@@ -13,9 +9,6 @@ function sortObject(obj) {
     return sorted;
 }
 
-/**
- * Tạo chữ ký HMAC-SHA512 theo chuẩn VNPay
- */
 function createSignature(data, secretKey) {
     const signData = Object.entries(data)
         .map(([k, v]) => `${k}=${encodeURIComponent(v).replace(/%20/g, '+')}`)
@@ -23,9 +16,6 @@ function createSignature(data, secretKey) {
     return crypto.createHmac('sha512', secretKey).update(signData).digest('hex');
 }
 
-/**
- * Verify chữ ký từ VNPay gọi về
- */
 function verifySignature(params, secretKey) {
     const secureHash = params['vnp_SecureHash'];
     const signParams = { ...params };
@@ -38,8 +28,6 @@ function verifySignature(params, secretKey) {
 }
 
 // ─── API 1: Tạo URL thanh toán VNPay ──────────────────────────────────────
-// POST /api/vnpay/create-payment
-// Body: { order_id, amount }
 exports.createPaymentUrl = async (req, res) => {
     try {
         const { order_id, amount } = req.body;
@@ -58,8 +46,6 @@ exports.createPaymentUrl = async (req, res) => {
         const pad = n => String(n).padStart(2, '0');
         const createDate = `${date.getFullYear()}${pad(date.getMonth()+1)}${pad(date.getDate())}${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
 
-        // VNPay yêu cầu amount tính bằng đồng VND × 100
-        // Vì hệ thống dùng USD (decimal), ta convert tạm: 1$ = 25000 VND
         const amountVND = Math.round(parseFloat(amount) * 25000);
 
         const vnpParams = sortObject({
@@ -68,10 +54,10 @@ exports.createPaymentUrl = async (req, res) => {
             vnp_TmnCode:    tmnCode,
             vnp_Locale:     'vn',
             vnp_CurrCode:   'VND',
-            vnp_TxnRef:     `${order_id}_${Date.now()}`,   // mã giao dịch duy nhất
+            vnp_TxnRef:     `${order_id}_${Date.now()}`,   
             vnp_OrderInfo:  `Thanh toan don hang ${order_id}`,
             vnp_OrderType:  'other',
-            vnp_Amount:     amountVND * 100,               // × 100 theo quy định VNPay
+            vnp_Amount:     amountVND * 100,              
             vnp_ReturnUrl:  returnUrl,
             vnp_IpAddr:     req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1',
             vnp_CreateDate: createDate,
@@ -87,7 +73,6 @@ exports.createPaymentUrl = async (req, res) => {
 
         const paymentUrl = `${vnpUrl}?${queryString}&vnp_SecureHash=${secureHash}`;
 
-        // Ghi record vào bảng payments (status = pending)
         await db.query(
             `INSERT INTO payments (order_id, amount, method, status, transaction_id)
              VALUES (?, ?, 'vnpay', 'pending', ?)`,
@@ -102,7 +87,6 @@ exports.createPaymentUrl = async (req, res) => {
 };
 
 // ─── API 2: Return URL — VNPay redirect user về sau khi thanh toán ─────────
-// GET /api/vnpay/return
 exports.vnpayReturn = async (req, res) => {
     try {
         const params = { ...req.query };
@@ -110,7 +94,7 @@ exports.vnpayReturn = async (req, res) => {
 
         const isValid = verifySignature(params, secretKey);
         const responseCode = params['vnp_ResponseCode'];
-        const txnRef = params['vnp_TxnRef'];   // format: "orderId_timestamp"
+        const txnRef = params['vnp_TxnRef'];   
         const orderId = parseInt(txnRef?.split('_')[0]);
 
         if (isValid && responseCode === '00') {
@@ -120,7 +104,6 @@ exports.vnpayReturn = async (req, res) => {
                  WHERE transaction_id = ? AND method = 'vnpay'`,
                 [txnRef]
             );
-            // Cập nhật orders → processing
             if (orderId) {
                 await db.query(
                     `UPDATE orders SET status = 'processing' WHERE order_id = ?`,
@@ -128,7 +111,6 @@ exports.vnpayReturn = async (req, res) => {
                 );
             }
         } else if (isValid) {
-            // Thanh toán thất bại — cập nhật status failed
             await db.query(
                 `UPDATE payments SET status = 'failed', updated_at = NOW()
                  WHERE transaction_id = ? AND method = 'vnpay'`,
@@ -136,7 +118,6 @@ exports.vnpayReturn = async (req, res) => {
             );
         }
 
-        // Forward toàn bộ params về client để hiển thị kết quả
         const clientUrl = `${process.env.VNPAY_RETURN_URL}?` +
             Object.entries(params).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
 

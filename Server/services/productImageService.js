@@ -2,7 +2,6 @@
  * @file productImageService.js
  * @description Service xử lý logic upload ảnh sản phẩm
  * Single Responsibility: Điều phối quy trình upload (Facade Pattern)
- * Open/Closed: Mở rộng nhưng không sửa đổi các service khác
  * @category Service
  */
 
@@ -30,11 +29,10 @@ const IMG_DIR = path.join(__dirname, '../../datasets/img');
  * @returns {Promise<boolean>} true nếu thành công
  */
 async function uploadSingleImage(filePath, productId, safeFolderName, isPrimary = false, maxRetries = 3) {
-  const MAX_RETRY_DELAY = 10000; // 10 giây
+  const MAX_RETRY_DELAY = 10000; 
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      // Upload lên Cloudinary
       const imageUrl = await cloudinaryService.uploadImageToCloudinary(
         filePath,
         safeFolderName
@@ -48,7 +46,6 @@ async function uploadSingleImage(filePath, productId, safeFolderName, isPrimary 
       // Lưu vào database
       await databaseService.insertProductImage(productId, imageUrl, isPrimary);
 
-      // Nếu là ảnh đại diện, cập nhật primary_image_url
       if (isPrimary) {
         await databaseService.updateProductPrimaryImage(productId, imageUrl);
       }
@@ -60,7 +57,6 @@ async function uploadSingleImage(filePath, productId, safeFolderName, isPrimary 
         return false;
       }
 
-      // Exponential backoff: 2s, 4s, 8s,...
       const delay = Math.min(MAX_RETRY_DELAY, 2000 * Math.pow(2, attempt - 1));
       log('WARNING', `Retry lần ${attempt}/${maxRetries} sau ${delay}ms...`);
       await sleep(delay);
@@ -99,7 +95,6 @@ async function uploadProductImages(folderName, folderPath, stats, onProgress) {
       return false;
     }
 
-    // Kiểm tra sản phẩm đã có ảnh chưa (tránh upload lại)
     const existingCount = await databaseService.getProductImageCount(productId);
     if (existingCount > 0) {
       stats.skipped++;
@@ -136,7 +131,6 @@ async function uploadProductImages(folderName, folderPath, stats, onProgress) {
       return false;
     }
 
-    // Chọn tối đa MAX_IMAGES_PER_PRODUCT ảnh
     const selectedFiles = files.slice(0, UPLOAD_CONFIG.MAX_IMAGES_PER_PRODUCT);
     const safeFolderName = sanitizeFolderName(folderName);
 
@@ -172,7 +166,6 @@ async function uploadProductImages(folderName, folderPath, stats, onProgress) {
         break;
       }
 
-      // Delay để tránh rate limit
       await sleep(UPLOAD_CONFIG.UPLOAD_DELAY_MS);
     }
 
