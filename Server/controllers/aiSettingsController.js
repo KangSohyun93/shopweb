@@ -18,12 +18,18 @@ exports.getSettings = async (req, res) => {
 // Validate dynamic values
 const validateSetting = (key, value) => {
     if (key === 'active_algorithm') {
-        return ['fpgrowth', 'apriori'].includes(value);
+        return ['fpgrowth',
+            'apriori' ,
+            'dic_apriori',
+            'hash_apriori', 
+            'partition_apriori',
+            'sampling_apriori',
+            'transaction_reduction'
+         ].includes(value);
     }
     if (key === 'recommendation_method') {
         return ['hybrid', 'trending'].includes(value);
     }
-    // Boolean toggles (global + per-page)
     const boolKeys = [
         'new_arrivals_boost_enabled',
         'homepage_use_cart_redis',
@@ -63,11 +69,9 @@ const validateSetting = (key, value) => {
     if (intNonNeg.includes(key)) {
         return Number.isInteger(numValue) && numValue >= 0;
     }
-    // Integer >= 1
     if (['new_arrivals_interval', 'new_arrivals_days'].includes(key)) {
         return Number.isInteger(numValue) && numValue >= 1;
     }
-    // Float 0..1
     if (['jaccard_weight', 'sales_weight', 'min_confidence'].includes(key)) {
         return numValue >= 0 && numValue <= 1;
     }
@@ -75,7 +79,6 @@ const validateSetting = (key, value) => {
     return false;
 };
 
-// PUT /api/ai-rules/settings
 exports.updateSetting = async (req, res) => {
     const { settings, setting_key, setting_value } = req.body;
     

@@ -4,7 +4,7 @@ import time
 import json
 
 # IMPORT CÁC THUẬT TOÁN VIẾT TAY CỦA BẠN
-from apriori import base_apriori
+from apriori import base_apriori, dic_apriori, hash_apriori, partition_apriori, sampling_apriori, transaction_reduction
 from fpgrowth import fp_growth
 
 import os
@@ -244,11 +244,21 @@ if __name__ == "__main__":
     transactions = get_transactions()
     
     if transactions:
-        print(f"🧠 [2/4] Đang chạy thuật toán {ACTIVE_ALGORITHM.upper()} do sinh viên tự code...")
+        print(f"🧠 [2/4] Đang chạy thuật toán {ACTIVE_ALGORITHM.upper()}...")
         
         # 1. Gọi thẳng vào code của bạn
         if ACTIVE_ALGORITHM == 'apriori':
             frequent_itemsets, stats = base_apriori.run(transactions, MIN_SUPPORT_COUNT)
+        elif ACTIVE_ALGORITHM == 'dic_apriori':
+            frequent_itemsets, stats = dic_apriori.run(transactions, MIN_SUPPORT_COUNT)
+        elif ACTIVE_ALGORITHM == 'hash_apriori':
+            frequent_itemsets, stats = hash_apriori.run(transactions, MIN_SUPPORT_COUNT)
+        elif ACTIVE_ALGORITHM == 'partition_apriori':
+            frequent_itemsets, stats = partition_apriori.run(transactions, MIN_SUPPORT_COUNT)
+        elif ACTIVE_ALGORITHM == 'sampling_apriori':
+            frequent_itemsets, stats = sampling_apriori.run(transactions, MIN_SUPPORT_COUNT)
+        elif ACTIVE_ALGORITHM == 'transaction_reduction':
+            frequent_itemsets, stats = transaction_reduction.run(transactions, MIN_SUPPORT_COUNT)
         elif ACTIVE_ALGORITHM == 'fpgrowth':
             frequent_itemsets, stats = fp_growth.run(transactions, MIN_SUPPORT_COUNT)
         else:

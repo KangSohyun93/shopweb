@@ -38,7 +38,6 @@ def run(transactions, min_support, bucket_size=100000):
             item_b = list(items_l1[j])[0]
             pair = tuple(sorted((item_a, item_b)))
             
-            # Kiểm tra "thùng" chứa cặp này có tiềm năng không?
             hash_val = hash(pair) % bucket_size
             if hash_table[hash_val] >= min_support:
                 c2_candidates.append(frozenset(pair))
@@ -59,7 +58,6 @@ def run(transactions, min_support, bucket_size=100000):
     l2 = {item: count for item, count in c2_counts.items() if count >= min_support}
     all_frequent_itemsets.update(l2)
     
-    # Ở phiên bản này, ta tập trung so sánh hiệu quả ở tầng C2
     stats = {
         "runtime": time.time() - start_time,
         "num_candidates": num_candidates,

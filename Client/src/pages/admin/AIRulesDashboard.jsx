@@ -480,7 +480,12 @@ const AIRulesDashboard = () => {
                       <select value={activeAlgorithm} onChange={e => setActiveAlgorithm(e.target.value)}
                         className="w-full border border-gray-200 rounded-xl px-3 py-2.5 outline-none text-gray-800 bg-gray-50 focus:border-violet-400 transition text-sm">
                         <option value="fpgrowth">FP-Growth (Cây FP-Tree, nhanh hơn)</option>
-                        <option value="apriori">Apriori (Tập ứng viên, cổ điển)</option>
+                        <option value="apriori">Base Apriori</option>
+                        <option value="dic_apriori">DIC Apriori</option>
+                        <option value="hash_apriori">Hash Apriori</option>
+                        <option value="partition_apriori">Partition Apriori</option>
+                        <option value="sampling_apriori">Sampling Apriori</option>
+                        <option value="transaction_reduction">Transaction Reduction</option>
                       </select>
                     </div>
                     <NumInput label="Support tối thiểu (lần mua chung)" value={minSupportCount} onChange={setMinSupportCount} min={1} accent="violet" />
