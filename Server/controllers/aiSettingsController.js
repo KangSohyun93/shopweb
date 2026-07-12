@@ -157,3 +157,18 @@ exports.runMiningWorker = async (req, res) => {
         console.log('Output:', stdout);
     });
 };
+
+// GET /api/ai-rules/benchmark-logs
+exports.getBenchmarkLogs = async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit, 10) || 20;
+        const [logs] = await db.query(
+            'SELECT id, algorithm, runtime, num_frequent_itemsets, num_rules, min_support_count, min_confidence, num_transactions, created_at FROM benchmark_logs ORDER BY created_at DESC LIMIT ?',
+            [limit]
+        );
+        res.status(200).json({ success: true, data: logs });
+    } catch (error) {
+        console.error('Lỗi khi lấy benchmark logs:', error);
+        res.status(500).json({ success: false, message: 'Lỗi server khi lấy lịch sử benchmark' });
+    }
+};

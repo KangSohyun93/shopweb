@@ -227,6 +227,27 @@ def save_mining_stats_to_mysql(algorithm, runtime, num_itemsets, num_rules):
     finally:
         connection.close()
 
+def save_benchmark_log(algorithm, runtime, num_itemsets, num_rules, min_sup, min_conf, num_transactions):
+    """Lưu lịch sử benchmark vào bảng benchmark_logs để hiển thị biểu đồ so sánh trên Dashboard."""
+    print("📊 Đang lưu lịch sử benchmark vào bảng benchmark_logs...")
+    connection = pymysql.connect(**DB_CONFIG)
+    try:
+        with connection.cursor() as cursor:
+            sql = """INSERT INTO benchmark_logs 
+                     (algorithm, runtime, num_frequent_itemsets, num_rules, 
+                      min_support_count, min_confidence, num_transactions)
+                     VALUES (%s, %s, %s, %s, %s, %s, %s)"""
+            cursor.execute(sql, (
+                algorithm, round(runtime, 4), num_itemsets, num_rules,
+                min_sup, min_conf, num_transactions
+            ))
+        connection.commit()
+        print("✅ Đã lưu benchmark log thành công!")
+    except Exception as e:
+        print(f"⚠️ Lỗi lưu benchmark log (bảng có thể chưa tồn tại): {e}")
+    finally:
+        connection.close()
+
 # ==========================================
 # CHƯƠNG TRÌNH CHÍNH
 # ==========================================
@@ -270,6 +291,7 @@ if __name__ == "__main__":
             print("⚠️ Không tìm thấy tập phổ biến nào. Hãy giảm MIN_SUPPORT_COUNT xuống (VD: 2 hoặc 3).")
             # Cập nhật thống kê rỗng
             save_mining_stats_to_mysql(ACTIVE_ALGORITHM, stats['runtime'], stats['num_frequent_itemsets'], 0)
+            save_benchmark_log(ACTIVE_ALGORITHM, stats['runtime'], stats['num_frequent_itemsets'], 0, MIN_SUPPORT_COUNT, MIN_CONFIDENCE, len(transactions))
         else:
             # 2. Sinh luật bằng tay
             rules = generate_rules_from_frequent_itemsets(frequent_itemsets, MIN_CONFIDENCE)
@@ -289,3 +311,4 @@ if __name__ == "__main__":
                 
             # Lưu thống kê thành công
             save_mining_stats_to_mysql(ACTIVE_ALGORITHM, stats['runtime'], stats['num_frequent_itemsets'], len(rules))
+            save_benchmark_log(ACTIVE_ALGORITHM, stats['runtime'], stats['num_frequent_itemsets'], len(rules), MIN_SUPPORT_COUNT, MIN_CONFIDENCE, len(transactions))

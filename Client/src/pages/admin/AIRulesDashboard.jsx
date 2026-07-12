@@ -86,6 +86,9 @@ const AIRulesDashboard = () => {
   const [totalRules, setTotalRules] = useState(0);
   const [rulesLimit, setRulesLimit] = useState(10);
 
+  // Benchmark history logs
+  const [benchmarkLogs, setBenchmarkLogs] = useState([]);
+
   // ── Tab: Trang chủ ────
   const [homepageUseCartRedis, setHomepageUseCartRedis] = useState(true);
   const [homepageUseTrending, setHomepageUseTrending] = useState(true);
@@ -127,9 +130,10 @@ const AIRulesDashboard = () => {
   const fetchData = async (pageNumber = currentPage) => {
     setIsLoadingRules(true);
     try {
-      const [rulesRes, settingsRes] = await Promise.all([
+      const [rulesRes, settingsRes, benchRes] = await Promise.all([
         axios.get(`${API_BASE}?page=${pageNumber}&limit=${rulesLimit}`),
         axios.get(`${API_BASE}/settings`),
+        axios.get(`${API_BASE}/benchmark-logs?limit=20`).catch(() => ({ data: { success: false } })),
       ]);
       if (rulesRes.data.success) {
         setRules(rulesRes.data.data);
@@ -177,6 +181,9 @@ const AIRulesDashboard = () => {
             default: break;
           }
         });
+      }
+      if (benchRes.data.success) {
+        setBenchmarkLogs(benchRes.data.data || []);
       }
     } catch (err) {
       console.error('Lỗi khi tải dữ liệu cấu hình:', err);
@@ -598,6 +605,64 @@ const AIRulesDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* BENCHMARK HISTORY TABLE */}
+      {benchmarkLogs.length > 0 && (
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden mb-10">
+          <div className="p-6 border-b border-gray-100 bg-gray-50">
+            <h2 className="text-xl font-bold text-gray-900">
+              Lịch sử Benchmark thuật toán
+            </h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="text-left px-5 py-3 text-xs font-bold text-gray-500 uppercase">#</th>
+                  <th className="text-left px-5 py-3 text-xs font-bold text-gray-500 uppercase">Thuật toán</th>
+                  <th className="text-center px-4 py-3 text-xs font-bold text-gray-500 uppercase">Runtime</th>
+                  <th className="text-center px-4 py-3 text-xs font-bold text-gray-500 uppercase">Tập phổ biến</th>
+                  <th className="text-center px-4 py-3 text-xs font-bold text-gray-500 uppercase">Luật sinh ra</th>
+                  <th className="text-center px-4 py-3 text-xs font-bold text-gray-500 uppercase">Min Sup</th>
+                  <th className="text-center px-4 py-3 text-xs font-bold text-gray-500 uppercase">Min Conf</th>
+                  <th className="text-center px-4 py-3 text-xs font-bold text-gray-500 uppercase">Giao dịch</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase">Thời điểm</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {(() => {
+                  return benchmarkLogs.map((log, idx) => {
+                    const rt = parseFloat(log.runtime);
+                    return (
+                      <tr key={log.id || idx} className="transition hover:bg-gray-50">
+                        <td className="px-5 py-3 text-gray-400 font-mono text-xs">{idx + 1}</td>
+                        <td className="px-5 py-3">
+                          <span className={`px-2.5 py-1 rounded-lg text-xs font-extrabold ${
+                            log.algorithm === 'fpgrowth' ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {log.algorithm.toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="font-extrabold text-sm text-gray-700">
+                            {rt.toFixed(4)}s
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center text-gray-700 font-semibold">{log.num_frequent_itemsets}</td>
+                        <td className="px-4 py-3 text-center text-indigo-600 font-semibold">{log.num_rules}</td>
+                        <td className="px-4 py-3 text-center text-gray-500">{log.min_support_count}</td>
+                        <td className="px-4 py-3 text-center text-gray-500">{log.min_confidence}</td>
+                        <td className="px-4 py-3 text-center text-gray-500">{log.num_transactions}</td>
+                        <td className="px-4 py-3 text-xs text-gray-400">{new Date(log.created_at).toLocaleString('vi-VN')}</td>
+                      </tr>
+                    );
+                  });
+                })()}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* TABLE: Danh sách luật kết hợp */}
       <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">

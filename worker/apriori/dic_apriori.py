@@ -42,8 +42,26 @@ def run(transactions, min_support_count, block_size=200):
             if state == 0 and count >= min_support_count:
                 itemsets[itemset][1] = 1 
                 
-                new_candidates = []
-                k = len(itemset) + 1
+                # Sinh ứng viên cha cấp k+1
+                k = len(itemset)
+                frequent_k = [x for x, v in itemsets.items() if len(x) == k and v[1] in (1, 2)]
+                
+                for other in frequent_k:
+                    if other != itemset:
+                        union_set = itemset.union(other)
+                        if len(union_set) == k + 1:
+                            # Kiểm tra xem tất cả tập con kích thước k của union_set có phổ biến (state 1 hoặc 2) hay không
+                            subsets = [frozenset(c) for c in combinations(union_set, k)]
+                            all_frequent = True
+                            for sub in subsets:
+                                if sub not in itemsets or itemsets[sub][1] not in (1, 2):
+                                    all_frequent = False
+                                    break
+                            
+                            if all_frequent and union_set not in itemsets:
+                                # Thêm ứng viên mới vào đếm từ block tiếp theo
+                                next_start = (current_idx + block_size) % total_len
+                                itemsets[union_set] = [0, 0, next_start]
                     
         current_idx = (current_idx + block_size) % total_len
         if current_idx == 0: 

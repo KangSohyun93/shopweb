@@ -11,4 +11,7 @@ router.get('/settings', aiSettingsController.getSettings);
 router.put('/settings', aiSettingsController.updateSetting);
 router.post('/run-worker', aiSettingsController.runMiningWorker);
 
+// Lịch sử benchmark
+router.get('/benchmark-logs', aiSettingsController.getBenchmarkLogs);
+
 module.exports = router;
