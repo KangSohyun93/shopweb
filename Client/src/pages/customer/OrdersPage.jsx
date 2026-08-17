@@ -59,8 +59,8 @@ const OrdersPage = () => {
 
     return (
         <div className="bg-gray-100 min-h-screen">
-            <div className="container mx-auto py-8 px-4">
-                <h2 className="text-2xl md:text-3xl font-bold mb-6 text-center text-gray-800">Quản lý đơn hàng</h2>
+        <div className="container mx-auto py-6 md:py-8 px-4 mt-14 md:mt-16">
+            <h2 className="text-xl md:text-3xl font-bold mb-6 text-center text-gray-800">Quản lý đơn hàng</h2>
 
                 <div className="bg-white rounded-t-lg shadow-md overflow-x-auto">
                     <nav className="flex border-b">
@@ -113,7 +113,10 @@ const OrdersPage = () => {
                             <div className="flex-grow">
                                 <p className="font-semibold text-gray-800 line-clamp-1">{representativeItem.product_name}</p>
                                 
-                                <p className="text-sm text-gray-500">Size: {representativeItem.size || 'N/A'}</p>
+                                <p className="text-sm text-gray-500">
+                                    Phân loại: Size {representativeItem.size || 'N/A'}
+                                    {representativeItem.color && representativeItem.color !== 'default' ? `, Màu ${representativeItem.color}` : ''}
+                                </p>
 
                                 {otherItemsCount > 0 && (
                                     <p className="text-sm text-gray-500 mt-1">và {otherItemsCount} sản phẩm khác</p>
@@ -125,7 +128,7 @@ const OrdersPage = () => {
 
                 <div className="p-4 bg-gray-50 rounded-b-lg flex flex-col md:flex-row justify-end items-center gap-4 text-right">
                     <p className="text-lg">
-                        Thành tiền: <span className="font-bold text-red-600">{Number(order.total_amount).toLocaleString('vi-VN')} VND</span>
+                        Thành tiền: <span className="font-bold text-red-600">{Number(order.total_amount).toLocaleString('en-US')} $</span>
                     </p>
                     <Link to={`/orders/${order.order_id}`} className="px-5 py-2 bg-blue-600 text-white rounded-md font-semibold shadow hover:bg-blue-700 transition">
                         Xem chi tiết

@@ -86,7 +86,7 @@ const ResetPassword = () => {
 
   if (!email) {
     return (
-      <div className="container mx-auto py-8 max-w-md text-center">
+      <div className="container mx-auto py-6 md:py-8 px-4 max-w-md text-center mt-14 md:mt-16">
         <p className="text-red-500 mb-4">Không tìm thấy email. Vui lòng thử lại.</p>
         <Link to="/forgot-password" className="text-blue-600 hover:underline">
           Quay lại quên mật khẩu
@@ -96,7 +96,7 @@ const ResetPassword = () => {
   }
 
   return (
-    <div className="container mx-auto py-8 max-w-md">
+    <div className="container mx-auto py-6 md:py-8 px-4 max-w-md mt-14 md:mt-16">
       <h2 className="text-2xl font-bold mb-6 text-center">Đặt lại mật khẩu</h2>
       <div className="bg-white p-8 rounded-lg shadow-md">
         <p className="text-gray-600 mb-6 text-center">

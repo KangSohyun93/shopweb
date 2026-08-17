@@ -5,7 +5,9 @@ const Product = {
     const [rows] = await pool.query(`
       SELECT p.product_id, p.name, p.description, p.category_id, p.brand_id, p.primary_image_url,
              c.name as category_name, b.name as brand_name,
-             pv.variant_id, pv.sku, pv.size, pv.price, pv.stock_quantity, pv.image_url
+             pv.variant_id, pv.sku, pv.color, pv.size, pv.price, pv.stock_quantity, pv.weight,
+             COALESCE((SELECT AVG(rating) FROM reviews r WHERE r.product_id = p.product_id), 0) as avg_rating,
+             COALESCE((SELECT SUM(oi.quantity) FROM order_items oi JOIN product_variants pv2 ON oi.variant_id = pv2.variant_id WHERE pv2.product_id = p.product_id), 0) as sold_count
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.category_id
       LEFT JOIN brands b ON p.brand_id = b.brand_id
@@ -25,6 +27,8 @@ const Product = {
           primary_image_url: row.primary_image_url,
           category_name: row.category_name,
           brand_name: row.brand_name,
+          avg_rating: row.avg_rating,
+          sold_count: row.sold_count,
           additional_images: [],
           variants: []
         };
@@ -33,10 +37,11 @@ const Product = {
         products[row.product_id].variants.push({
           variant_id: row.variant_id,
           sku: row.sku,
+          color: row.color,
           size: row.size,
           price: row.price,
           stock_quantity: row.stock_quantity,
-          image_url: row.image_url
+          weight: row.weight
         });
       }
     });
@@ -67,13 +72,16 @@ const Product = {
     const [rows] = await pool.query(`
       SELECT p.product_id, p.name, p.description, p.category_id, p.brand_id, p.primary_image_url,
              c.name as category_name, b.name as brand_name,
-             pv.variant_id, pv.sku, pv.size, pv.price, pv.stock_quantity, pv.image_url
+             pv.variant_id, pv.sku, pv.color, pv.size, pv.price, pv.stock_quantity, pv.weight,
+             COALESCE((SELECT AVG(rating) FROM reviews r WHERE r.product_id = p.product_id), 0) as avg_rating,
+             COALESCE((SELECT SUM(oi.quantity) FROM order_items oi JOIN product_variants pv2 ON oi.variant_id = pv2.variant_id WHERE pv2.product_id = p.product_id), 0) as sold_count
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.category_id
       LEFT JOIN brands b ON p.brand_id = b.brand_id
       LEFT JOIN product_variants pv ON p.product_id = pv.product_id
       WHERE p.product_id = ?
     `, [id]);
+    
     if (!rows.length) return null;
     const product = {
       product_id: rows[0].product_id,
@@ -84,18 +92,22 @@ const Product = {
       primary_image_url: rows[0].primary_image_url,
       category_name: rows[0].category_name,
       brand_name: rows[0].brand_name,
+      avg_rating: rows[0].avg_rating,
+      sold_count: rows[0].sold_count,
       additional_images: [],
       variants: []
     };
+    
     rows.forEach(row => {
       if (row.variant_id) {
         product.variants.push({
           variant_id: row.variant_id,
           sku: row.sku,
+          color: row.color,
           size: row.size,
           price: row.price,
           stock_quantity: row.stock_quantity,
-          image_url: row.image_url
+          weight: row.weight
         });
       }
     });
@@ -125,11 +137,12 @@ const Product = {
       `, [imageValues]);
     }
 
+    // Đã xóa cột image_url khỏi lệnh INSERT vào product_variants
     for (const variant of variants) {
       await pool.query(`
-        INSERT INTO product_variants (product_id, sku, size, price, stock_quantity, image_url)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, [productId, variant.sku, variant.size, variant.price, variant.stock_quantity, variant.image_url || null]);
+        INSERT INTO product_variants (product_id, sku, color, size, price, stock_quantity, weight)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [productId, variant.sku, variant.color || 'default', variant.size || 'one-size', variant.price, variant.stock_quantity, variant.weight || null]);
     }
     return productId;
   },
@@ -151,11 +164,12 @@ const Product = {
       `, [imageValues]);
     }
 
+    // Đã xóa cột image_url khỏi lệnh INSERT vào product_variants
     for (const variant of variants) {
       await pool.query(`
-        INSERT INTO product_variants (product_id, sku, size, price, stock_quantity, image_url)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, [product_id, variant.sku, variant.size, variant.price, variant.stock_quantity, variant.image_url || null]);
+        INSERT INTO product_variants (product_id, sku, color, size, price, stock_quantity, weight)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [product_id, variant.sku, variant.color || 'default', variant.size || 'one-size', variant.price, variant.stock_quantity, variant.weight || null]);
     }
   },
 
@@ -174,7 +188,9 @@ searchByName: async (query) => {
         p.product_id, p.name, p.description, p.primary_image_url,
         c.name as category_name,
         b.name as brand_name,
-        pv.variant_id, pv.sku, pv.size, pv.price, pv.stock_quantity, pv.image_url
+        pv.variant_id, pv.sku, pv.color, pv.size, pv.price, pv.stock_quantity, pv.weight,
+        COALESCE((SELECT AVG(rating) FROM reviews r WHERE r.product_id = p.product_id), 0) as avg_rating,
+        COALESCE((SELECT SUM(oi.quantity) FROM order_items oi JOIN product_variants pv2 ON oi.variant_id = pv2.variant_id WHERE pv2.product_id = p.product_id), 0) as sold_count
      FROM products p
      LEFT JOIN categories c ON p.category_id = c.category_id
      LEFT JOIN brands b ON p.brand_id = b.brand_id
@@ -185,8 +201,8 @@ searchByName: async (query) => {
         c.name LIKE ?         -- Tìm theo tên danh mục
      GROUP BY
         p.product_id, p.name, p.description, p.primary_image_url,
-        c.name, b.name, pv.variant_id, pv.sku, pv.size,
-        pv.price, pv.stock_quantity, pv.image_url`,
+        c.name, b.name, pv.variant_id, pv.sku, pv.color, pv.size,
+        pv.price, pv.stock_quantity, pv.weight`,
     [searchTerm, searchTerm, searchTerm] 
   );
 
@@ -204,6 +220,8 @@ searchByName: async (query) => {
         category_name: row.category_name,
         brand_name: row.brand_name,
         price: row.price || 0,
+        avg_rating: row.avg_rating,
+        sold_count: row.sold_count,
         variants: []
       };
     }
@@ -211,10 +229,11 @@ searchByName: async (query) => {
       products[row.product_id].variants.push({
         variant_id: row.variant_id,
         sku: row.sku,
+        color: row.color,
         size: row.size,
         price: row.price,
         stock_quantity: row.stock_quantity,
-        image_url: row.image_url
+        weight: row.weight
       });
     }
   });

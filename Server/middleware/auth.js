@@ -34,7 +34,6 @@ const isAdmin = (req, res, next) => {
     next();
 };
 
-// Alias for requireAdmin
 const requireAdmin = isAdmin;
 const authenticateToken = authenticateJWT;
 

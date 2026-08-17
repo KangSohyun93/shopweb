@@ -1,11 +1,19 @@
 import { useState, useEffect } from 'react';
 
 const VariantSelector = ({ variants, onSelect, selectedVariantId }) => {
-  const [selectedId, setSelectedId] = useState(selectedVariantId || (variants[0]?.variant_id ?? ''));
+  const [selectedColor, setSelectedColor] = useState('');
+  const [selectedSize, setSelectedSize] = useState('');
 
   useEffect(() => {
-    if (selectedVariantId) setSelectedId(selectedVariantId);
-  }, [selectedVariantId]);
+    if (!Array.isArray(variants) || variants.length === 0) return;
+    
+    // Tìm biến thể đang được chọn hoặc mặc định lấy biến thể đầu tiên
+    const current = variants.find(v => v.variant_id === selectedVariantId) || variants[0];
+    if (current) {
+      setSelectedColor(current.color || 'default');
+      setSelectedSize(current.size || 'Free Size');
+    }
+  }, [selectedVariantId, variants]);
 
   if (!Array.isArray(variants) || variants.length === 0) {
     return (
@@ -16,30 +24,100 @@ const VariantSelector = ({ variants, onSelect, selectedVariantId }) => {
     );
   }
 
-  const selectedVariant = variants.find(v => v.variant_id === selectedId) || variants[0];
+  // Lấy danh sách màu sắc và kích cỡ độc nhất
+  const colors = [...new Set(variants.map(v => v.color || 'default'))];
+  const sizes = [...new Set(variants.map(v => v.size || 'Free Size'))];
+
+  // Luôn hiển thị màu nếu không phải 'default'
+  const showColorSelector = colors.length > 1 || (colors.length === 1 && colors[0] !== 'default');
+  // Luôn hiển thị size — kể cả khi chỉ có Free Size (để user biết SP này Freesize)
+  const showSizeSelector = sizes.length >= 1;
+
+  const handleColorChange = (color) => {
+    setSelectedColor(color);
+    const colorVariants = variants.filter(v => (v.color || 'default') === color);
+    
+    // Kiểm tra xem size hiện tại có khả dụng với màu mới không
+    const match = colorVariants.find(v => (v.size || 'Free Size') === selectedSize);
+    if (match) {
+      onSelect && onSelect(match);
+    } else if (colorVariants.length > 0) {
+      // Nếu không khả dụng, chọn size đầu tiên có sẵn của màu đó
+      const fallback = colorVariants[0];
+      setSelectedSize(fallback.size || 'Free Size');
+      onSelect && onSelect(fallback);
+    }
+  };
+
+  const handleSizeChange = (size) => {
+    setSelectedSize(size);
+    const sizeVariants = variants.filter(v => (v.size || 'Free Size') === size);
+    
+    // Kiểm tra xem màu hiện tại có khả dụng với size mới không
+    const match = sizeVariants.find(v => (v.color || 'default') === selectedColor);
+    if (match) {
+      onSelect && onSelect(match);
+    } else if (sizeVariants.length > 0) {
+      // Nếu không khả dụng, chọn màu đầu tiên có sẵn của size đó
+      const fallback = sizeVariants[0];
+      setSelectedColor(fallback.color || 'default');
+      onSelect && onSelect(fallback);
+    }
+  };
 
   return (
-    <div className="mt-2">
-      <label className="block text-lg font-bold text-gray-800 mb-3">Chọn size:</label>
-      <div className="flex flex-wrap gap-4">
-        {variants.map((variant) => (
-          <button
-            key={variant.variant_id}
-            type="button"
-            className={`min-w-[64px] px-5 py-2 rounded-xl border font-semibold text-base transition
-              ${selectedId === variant.variant_id
-                ? 'bg-blue-600 text-white border-blue-700 shadow'
-                : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:border-blue-400'}
-            `}
-            onClick={() => {
-              setSelectedId(variant.variant_id);
-              onSelect && onSelect(variant);
-            }}
-          >
-            {variant.size ? variant.size : variant.sku || 'Không xác định'}
-          </button>
-        ))}
-      </div>
+    <div className="space-y-4">
+      {/* Chọn màu sắc */}
+      {showColorSelector && (
+        <div>
+          <label className="block text-base font-bold text-gray-800 mb-2">Chọn màu:</label>
+          <div className="flex flex-wrap gap-3">
+            {colors.map((color) => {
+              const isSelected = selectedColor === color;
+              return (
+                <button
+                  key={color}
+                  type="button"
+                  className={`px-4 py-2 rounded-xl border font-semibold text-sm transition
+                    ${isSelected
+                      ? 'bg-blue-600 text-white border-blue-700 shadow'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:border-blue-400'}
+                  `}
+                  onClick={() => handleColorChange(color)}
+                >
+                  {color === 'default' ? 'Mặc định' : color}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Chọn kích cỡ */}
+      {showSizeSelector && (
+        <div>
+          <label className="block text-base font-bold text-gray-800 mb-2">Chọn size:</label>
+          <div className="flex flex-wrap gap-3">
+            {sizes.map((size) => {
+              const isSelected = selectedSize === size;
+              return (
+                <button
+                  key={size}
+                  type="button"
+                  className={`min-w-[48px] px-4 py-2 rounded-xl border font-semibold text-sm transition
+                    ${isSelected
+                      ? 'bg-blue-600 text-white border-blue-700 shadow'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:border-blue-400'}
+                  `}
+                  onClick={() => handleSizeChange(size)}
+                >
+                  {size === 'Free Size' || size === 'Freesize' || size === 'One Size' ? 'Free Size' : size}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

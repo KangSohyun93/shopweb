@@ -3,7 +3,7 @@ const Promotion = require('./promotion');
 
 const Order = {
     create: async (order) => {
-    const { user_id, address_id, total_amount, items, promotion_code } = order;
+    const { user_id, address_id, total_amount, items, promotion_code, payment_method } = order;
     let final_amount = total_amount;
     let promotion_id = null;
 
@@ -100,6 +100,15 @@ const Order = {
                 console.warn(`No cart found for user_id ${user_id}`);
             }
 
+            // Insert into payments for COD orders
+            if (!payment_method || payment_method === 'cod') {
+                await connection.query(
+                    `INSERT INTO payments (order_id, amount, method, status)
+                     VALUES (?, ?, 'cod', 'pending')`,
+                    [orderId, final_amount]
+                );
+            }
+
             await connection.commit();
         return orderId;
     } catch (error) {
@@ -129,7 +138,7 @@ const Order = {
     const ordersWithItems = await Promise.all(
         orders.map(async (order) => {
             const [items] = await pool.query(
-                `SELECT oi.*, p.name as product_name,p.product_id, p.primary_image_url, pv.image_url, pv.size
+                `SELECT oi.*, p.name as product_name, p.product_id, p.primary_image_url, pv.size, pv.color
                  FROM order_items oi
                  JOIN product_variants pv ON oi.variant_id = pv.variant_id
                  JOIN products p ON pv.product_id = p.product_id
@@ -167,8 +176,8 @@ const Order = {
     const [itemRows] = await pool.query(
         `SELECT 
             oi.*, 
-            pv.image_url, 
             pv.size, 
+            pv.color,
             p.product_id,          -- Thêm product_id để link
             p.name as product_name, 
             p.primary_image_url    -- Thêm ảnh chính của sản phẩm
@@ -184,16 +193,31 @@ const Order = {
     
 
     // lấy tất cả đơn hàng
-    getAll: async () => {
+    getAll: async (page = 1, limit = 50) => {
+    const offset = (page - 1) * limit;
+    
+    // Lấy 50 đơn hàng của trang hiện tại
     const [rows] = await pool.query(
         `SELECT o.*, u.email as user_email, a.recipient_name, a.street, a.city, a.country, p.code as promotion_code
          FROM orders o
          LEFT JOIN users u ON o.user_id = u.user_id
          LEFT JOIN addresses a ON o.address_id = a.address_id
          LEFT JOIN promotions p ON o.promotion_id = p.promotion_id
-         ORDER BY o.created_at DESC`
+         ORDER BY o.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [Number(limit), Number(offset)]
     );
-    return rows;
+    
+    // Lấy tổng số lượng đơn hàng (để Frontend biết có bao nhiêu trang)
+    const [countResult] = await pool.query('SELECT COUNT(*) as total FROM orders');
+    const totalOrders = countResult[0].total;
+
+    return {
+        data: rows,
+        total: totalOrders,
+        currentPage: Number(page),
+        totalPages: Math.ceil(totalOrders / limit)
+    };
 },
 
     updateStatus: async (order_id, status) => {

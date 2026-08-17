@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import { getOrderDetails, cancelOrder, createReview, updateReview, getUserReview, checkCanReturn, requestReturn } from '../../services/api'; 
 import ReviewModal from '../../components/ReviewModal'; 
 
@@ -59,7 +60,7 @@ const OrderDetailPage = () => {
     const [canReturn, setCanReturn] = useState({ canReturn: false, reason: '' });
     const [isRequestingReturn, setIsRequestingReturn] = useState(false);
 
-    const fetchOrder = async () => {
+    const fetchOrder = useCallback(async () => {
         try {
             setLoading(true);
             const response = await getOrderDetails(id);
@@ -95,26 +96,46 @@ const OrderDetailPage = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id]);
     
     useEffect(() => {
         if (id) {
            fetchOrder();
         }
-    }, [id]);
+    }, [id, fetchOrder]);
     
     const handleCancelOrder = async () => {
-        if (!window.confirm('Bạn có chắc chắn muốn hủy đơn hàng này không? Thao tác này không thể hoàn tác.')) {
-            return;
-        }
+        const confirmResult = await Swal.fire({
+            title: 'Xác nhận hủy đơn',
+            text: 'Bạn có chắc chắn muốn hủy đơn hàng này không? Thao tác này không thể hoàn tác.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#aaa',
+            confirmButtonText: 'Hủy đơn hàng',
+            cancelButtonText: 'Đóng'
+        });
+        if (!confirmResult.isConfirmed) return;
+
         setIsCancelling(true);
         setError(null);
         try {
             const response = await cancelOrder(order.order_id);
-            alert('Đã hủy đơn hàng thành công!');
+            Swal.fire({
+                title: 'Thành công',
+                text: 'Đã hủy đơn hàng thành công!',
+                icon: 'success',
+                confirmButtonColor: '#3085d6'
+            });
             setOrder(response.data); 
         } catch (err) {
             setError(err.response?.data?.error || 'Không thể hủy đơn hàng. Vui lòng thử lại.');
+            Swal.fire({
+                title: 'Thất bại',
+                text: err.response?.data?.error || 'Không thể hủy đơn hàng. Vui lòng thử lại.',
+                icon: 'error',
+                confirmButtonColor: '#d33'
+            });
         } finally {
             setIsCancelling(false);
         }
@@ -145,23 +166,54 @@ const OrderDetailPage = () => {
     };
 
     const handleRequestReturn = async () => {
-        const reason = prompt('Vui lòng nhập lý do yêu cầu trả hàng:');
-        if (!reason || reason.trim() === '') {
-            alert('Vui lòng nhập lý do trả hàng');
-            return;
-        }
+        const { value: reason } = await Swal.fire({
+            title: 'Yêu cầu trả hàng',
+            input: 'text',
+            inputLabel: 'Vui lòng nhập lý do yêu cầu trả hàng:',
+            inputPlaceholder: 'Nhập lý do tại đây...',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#aaa',
+            confirmButtonText: 'Gửi yêu cầu',
+            cancelButtonText: 'Hủy',
+            inputValidator: (value) => {
+                if (!value || value.trim() === '') {
+                    return 'Lý do trả hàng không được để trống!';
+                }
+            }
+        });
 
-        if (!window.confirm('Bạn có chắc chắn muốn yêu cầu trả hàng?')) {
-            return;
-        }
+        if (!reason) return;
+
+        const confirmResult = await Swal.fire({
+            title: 'Xác nhận gửi yêu cầu',
+            text: 'Bạn có chắc chắn muốn gửi yêu cầu trả hàng cho đơn hàng này?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#aaa',
+            confirmButtonText: 'Xác nhận',
+            cancelButtonText: 'Hủy'
+        });
+        if (!confirmResult.isConfirmed) return;
 
         setIsRequestingReturn(true);
         try {
             await requestReturn(id, reason);
-            alert('Đã gửi yêu cầu trả hàng thành công!');
+            Swal.fire({
+                title: 'Thành công',
+                text: 'Đã gửi yêu cầu trả hàng thành công!',
+                icon: 'success',
+                confirmButtonColor: '#3085d6'
+            });
             await fetchOrder();
         } catch (err) {
-            alert(err.response?.data?.error || 'Không thể gửi yêu cầu trả hàng');
+            Swal.fire({
+                title: 'Thất bại',
+                text: err.response?.data?.error || 'Không thể gửi yêu cầu trả hàng',
+                icon: 'error',
+                confirmButtonColor: '#d33'
+            });
         } finally {
             setIsRequestingReturn(false);
         }
@@ -186,7 +238,7 @@ const OrderDetailPage = () => {
 
     return (
         <div className="bg-gray-50 min-h-screen">
-            <div className="container mx-auto py-10 px-4">
+            <div className="container mx-auto py-6 md:py-10 px-4 mt-14 md:mt-16">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-3xl font-bold text-gray-800">Chi tiết đơn hàng #{order.order_id}</h2>
                     <Link to="/orders" className="flex items-center gap-2 text-blue-600 hover:underline">
@@ -216,9 +268,12 @@ const OrderDetailPage = () => {
                                                 <Link to={`/products/${item.product_id}`} className="font-semibold text-gray-800 hover:text-blue-600 transition-colors">
                                                     {item.product_name}
                                                 </Link>
-                                                <p className="text-sm text-gray-500">Phân loại: Size {item.size || 'N/A'}</p>
+                                                <p className="text-sm text-gray-500">
+                                                     Phân loại: Size {item.size || 'N/A'}
+                                                     {item.color && item.color !== 'default' ? `, Màu ${item.color}` : ''}
+                                                 </p>
                                                 <p className="text-sm text-gray-500">Số lượng: {item.quantity}</p>
-                                                <p className="font-semibold mt-2">{(item.price * item.quantity).toLocaleString('vi-VN')} VND</p>
+                                                <p className="font-semibold mt-2">{(item.price * item.quantity).toLocaleString('en-US')} $</p>
                                                 
                                                 {order.status === 'delivered' && (
                                                     <div className="mt-3">
@@ -381,9 +436,9 @@ const OrderDetailPage = () => {
                         <div className="bg-white p-6 rounded-lg shadow-md">
                              <h3 className="text-xl font-semibold mb-4">Tóm tắt thanh toán</h3>
                              <div className="space-y-2 text-gray-700">
-                                <div className="flex justify-between"><span>Tạm tính:</span><span>{subtotal.toLocaleString('vi-VN')} VND</span></div>
-                                {discountAmount > 0 && <div className="flex justify-between text-green-600"><span>Giảm giá ({order.promotion_code}):</span><span>- {discountAmount.toLocaleString('vi-VN')} VND</span></div>}
-                                <div className="border-t pt-2 mt-2 flex justify-between font-bold text-lg"><span>Tổng cộng:</span><span className="text-red-600">{order.total_amount.toLocaleString('vi-VN')} VND</span></div>
+                                <div className="flex justify-between"><span>Tạm tính:</span><span>{subtotal.toLocaleString('en-US')} $</span></div>
+                                {discountAmount > 0 && <div className="flex justify-between text-green-600"><span>Giảm giá ({order.promotion_code}):</span><span>- {discountAmount.toLocaleString('en-US')} $</span></div>}
+                                <div className="border-t pt-2 mt-2 flex justify-between font-bold text-lg"><span>Tổng cộng:</span><span className="text-red-600">{order.total_amount.toLocaleString('en-US')} $</span></div>
                              </div>
                         </div>
                     </div>

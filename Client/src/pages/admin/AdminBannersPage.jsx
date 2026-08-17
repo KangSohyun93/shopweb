@@ -173,12 +173,12 @@ const AdminBannersPage = () => {
     if (error) return <p className="text-center py-10 text-red-600">{error}</p>;
 
     return (
-        <div className="container mx-auto px-4 py-8">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-bold">Quản lý Banner</h2>
+        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 sm:mb-6">
+                <h2 className="text-xl sm:text-3xl font-bold">Quản lý Banner</h2>
                 <button
                     onClick={() => handleOpenModal()}
-                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+                    className="bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-blue-700 transition text-sm sm:text-base"
                 >
                     ➕ Thêm Banner
                 </button>
@@ -189,7 +189,47 @@ const AdminBannersPage = () => {
                     Chưa có banner nào
                 </div>
             ) : (
-                <div className="bg-white rounded-lg shadow overflow-hidden">
+                <>
+                {/* Mobile Card Layout */}
+                <div className="md:hidden space-y-3">
+                    {banners.map(banner => (
+                        <div key={banner.banner_id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                            {banner.image_url && (
+                                <img src={banner.image_url} alt={banner.title} className="w-full h-32 object-cover" />
+                            )}
+                            <div className="p-3">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="min-w-0 flex-1">
+                                        <span className="font-semibold text-sm text-gray-800 block truncate">{banner.title}</span>
+                                        {banner.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{banner.description}</p>}
+                                    </div>
+                                    <button
+                                        onClick={() => handleToggleStatus(banner)}
+                                        className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${banner.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-600'}`}
+                                    >
+                                        {banner.is_active ? '✅ On' : 'Off'}
+                                    </button>
+                                </div>
+                                <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
+                                    <span>
+                                        {banner.start_date ? new Date(banner.start_date).toLocaleDateString('vi-VN') : ''}
+                                        {banner.start_date && banner.end_date ? ' → ' : ''}
+                                        {banner.end_date ? new Date(banner.end_date).toLocaleDateString('vi-VN') : ''}
+                                        {!banner.start_date && !banner.end_date ? 'Không giới hạn' : ''}
+                                    </span>
+                                    <span className="bg-gray-100 px-2 py-0.5 rounded-full font-semibold">#{banner.display_order}</span>
+                                </div>
+                                <div className="flex gap-3 justify-end pt-2 border-t border-gray-100">
+                                    <button onClick={() => handleOpenModal(banner)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Sửa</button>
+                                    <button onClick={() => handleDelete(banner.banner_id)} className="text-red-600 hover:text-red-800 text-sm font-medium">Xóa</button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Desktop Table Layout */}
+                <div className="hidden md:block bg-white rounded-lg shadow overflow-hidden">
                     <table className="min-w-full">
                         <thead className="bg-gray-50">
                             <tr>
@@ -276,12 +316,13 @@ const AdminBannersPage = () => {
                         </tbody>
                     </table>
                 </div>
+                </>
             )}
 
             {/* Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-0">
+                    <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                         <h3 className="text-2xl font-bold mb-4">
                             {editingBanner ? 'Chỉnh sửa Banner' : 'Thêm Banner mới'}
                         </h3>

@@ -14,6 +14,12 @@ const AdminChatPage = () => {
   const typingTimeoutRef = useRef(null);
   const { socket, connected } = useSocket();
 
+  // FIX: Use ref to always access latest selectedConversation inside socket handlers
+  const selectedConversationRef = useRef(selectedConversation);
+  useEffect(() => {
+    selectedConversationRef.current = selectedConversation;
+  }, [selectedConversation]);
+
   useEffect(() => {
     loadConversations();
   }, []);
@@ -30,24 +36,52 @@ const AdminChatPage = () => {
     if (!socket) return;
 
     const handleNewMessage = (data) => {
-      // Update messages if viewing this conversation
-      if (selectedConversation && data.conversationId === selectedConversation.conversation_id) {
-        setMessages((prev) => [...prev, data]);
-        socket.emit('chat:mark-read', data.conversationId);
-      }
-      
-      // Update conversations list with unread count
+      console.log('📨 [AdminChatPage] Received chat:new-message event:', data);
+      const current = selectedConversationRef.current;
+      console.log('👥 Current active conversation:', current);
+
+      // Luôn tải lại danh sách cuộc trò chuyện để đưa người vừa gửi lên đầu và cập nhật tin nhắn mới
       loadConversations();
+
+      // Nếu đang mở đúng cuộc trò chuyện này, thêm tin nhắn mới vào hộp chat
+      if (current && String(data.conversationId) === String(current.conversation_id)) {
+        console.log('✏️ Appending message to current conversation');
+        setMessages((prev) => {
+          const messageExists = prev.some(m => String(m.message_id) === String(data.message_id));
+          if (messageExists) {
+            console.log('⚠️ Message already exists, skipping duplicate');
+            return prev;
+          }
+          return [...prev, data];
+        });
+        // Báo đã đọc
+        socket.emit('chat:mark-read', current.conversation_id);
+      } else {
+        console.log('ℹ️ Message belongs to another conversation. Target:', data.conversationId, 'Active:', current?.conversation_id);
+      }
     };
 
+    // FIX: handleMessageSent is for admin's OWN sent messages — add them to the list
     const handleMessageSent = (message) => {
-      if (selectedConversation) {
-        setMessages((prev) => [...prev, message]);
-      }
+      const current = selectedConversationRef.current;
+      if (!current) return;
+
+      // FIX: Use String() comparison
+      if (String(message.conversation_id) !== String(current.conversation_id)) return;
+
+      setMessages((prev) => {
+        const messageExists = prev.some(m => String(m.message_id) === String(message.message_id));
+        if (messageExists) {
+          console.log('⚠️ Message already exists, skipping duplicate');
+          return prev;
+        }
+        return [...prev, message];
+      });
     };
 
     const handleTyping = (data) => {
-      if (selectedConversation && data.conversationId === selectedConversation.conversation_id) {
+      const current = selectedConversationRef.current;
+      if (current && String(data.conversationId) === String(current.conversation_id)) {
         setTypingUsers((prev) => {
           const newMap = new Map(prev);
           if (data.isTyping) {
@@ -61,11 +95,20 @@ const AdminChatPage = () => {
     };
 
     const handleMessagesRead = (convId) => {
-      if (selectedConversation && convId === selectedConversation.conversation_id) {
+      const current = selectedConversationRef.current;
+      if (current && String(convId) === String(current.conversation_id)) {
         setMessages((prev) =>
           prev.map((msg) => ({ ...msg, is_read: 1 }))
         );
       }
+      // FIX: Also update unread count in the list when any conversation is marked read
+      setConversations((prev) =>
+        prev.map((conv) =>
+          String(conv.conversation_id) === String(convId)
+            ? { ...conv, unread_count: 0 }
+            : conv
+        )
+      );
     };
 
     socket.on('chat:new-message', handleNewMessage);
@@ -79,7 +122,8 @@ const AdminChatPage = () => {
       socket.off('chat:typing', handleTyping);
       socket.off('chat:messages-read', handleMessagesRead);
     };
-  }, [socket, selectedConversation]);
+  // FIX: Only depend on socket — use ref for selectedConversation to avoid re-registering handlers
+  }, [socket]);
 
   useEffect(() => {
     scrollToBottom();
@@ -105,16 +149,18 @@ const AdminChatPage = () => {
       setLoading(true);
       const response = await getConversationDetails(selectedConversation.conversation_id);
       setMessages(response.data.messages);
-      
+
       // Mark as read via socket
       if (socket) {
         socket.emit('chat:mark-read', selectedConversation.conversation_id);
       }
-      
-      // Update conversation in list
+
+      // FIX: Update unread count in list to 0 immediately after loading messages
       setConversations((prev) =>
         prev.map((conv) =>
-          conv.conversation_id === selectedConversation.conversation_id ? { ...conv, unread_count: 0 } : conv
+          conv.conversation_id === selectedConversation.conversation_id
+            ? { ...conv, unread_count: 0 }
+            : conv
         )
       );
     } catch (error) {
@@ -128,42 +174,63 @@ const AdminChatPage = () => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedConversation || sending || !socket) return;
 
+    const messageText = newMessage.trim();
+    setNewMessage('');
+
     try {
       setSending(true);
-      
+
       const token = localStorage.getItem('token');
       const payload = JSON.parse(atob(token.split('.')[1]));
-      
+
       socket.emit('chat:send-message', {
         conversationId: selectedConversation.conversation_id,
-        message: newMessage.trim(),
+        message: messageText,
         senderType: 'admin',
         senderId: payload.user_id
+      }, (response) => {
+        if (response.success) {
+          console.log('✅ Message sent successfully:', response.data);
+
+          // FIX: Add message directly from the callback response
+          // This ensures it shows up even if chat:message-sent event is delayed or missed
+          setMessages((prev) => {
+            const messageExists = prev.some(m => String(m.message_id) === String(response.data.message_id));
+            if (messageExists) return prev;
+            return [...prev, response.data];
+          });
+
+          socket.emit('chat:typing', {
+            conversationId: selectedConversation.conversation_id,
+            isTyping: false
+          });
+        } else {
+          console.error('❌ Error sending message:', response.error);
+          // FIX: Restore the message text on failure so user can retry
+          setNewMessage(messageText);
+          alert(`Lỗi gửi tin nhắn: ${response.error}`);
+        }
+        setSending(false);
       });
-      
-      setNewMessage('');
-      
-      // Stop typing indicator
-      socket.emit('chat:typing', { conversationId: selectedConversation.conversation_id, isTyping: false });
     } catch (error) {
       console.error('Error sending message:', error);
+      setNewMessage(messageText);
       alert('Không thể gửi tin nhắn. Vui lòng thử lại.');
-    } finally {
       setSending(false);
     }
   };
 
   const handleTyping = (e) => {
     setNewMessage(e.target.value);
-    
+
     if (!socket || !selectedConversation) return;
-    
+
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
-    
+
     socket.emit('chat:typing', { conversationId: selectedConversation.conversation_id, isTyping: true });
-    
+
     typingTimeoutRef.current = setTimeout(() => {
       socket.emit('chat:typing', { conversationId: selectedConversation.conversation_id, isTyping: false });
     }, 2000);
@@ -183,10 +250,10 @@ const AdminChatPage = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-4">
-      <h1 className="text-3xl font-bold mb-4">Quản lý Chat</h1>
+    <div className="container mx-auto px-3 sm:px-4 py-4">
+      <h1 className="text-xl sm:text-3xl font-bold mb-4">Quản lý Chat</h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 h-[calc(100vh-200px)]">
         {/* Conversations List */}
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div className="p-4 border-b bg-gray-50">
@@ -203,13 +270,16 @@ const AdminChatPage = () => {
                   key={conv.conversation_id}
                   onClick={() => setSelectedConversation(conv)}
                   className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
-                    selectedConversation?.conversation_id === conv.conversation_id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
+                    selectedConversation?.conversation_id === conv.conversation_id
+                      ? 'bg-blue-50 border-l-4 border-l-blue-600'
+                      : ''
                   }`}
                 >
                   <div className="flex justify-between items-start mb-1">
                     <h3 className="font-semibold">{conv.name}</h3>
+                    {/* FIX: Show unread count badge for each conversation */}
                     {conv.unread_count > 0 && (
-                      <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1">
+                      <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[24px] text-center">
                         {conv.unread_count}
                       </span>
                     )}
@@ -224,7 +294,7 @@ const AdminChatPage = () => {
                           : 'bg-gray-100 text-gray-800'
                       }`}
                     >
-                      {conv.status === 'open' ? '' : ''}
+                      {conv.status === 'open' ? 'Mở' : 'Đóng'}
                     </span>
                   </div>
                 </div>
@@ -275,13 +345,21 @@ const AdminChatPage = () => {
                             </p>
                           )}
                           <p className="text-sm whitespace-pre-wrap">{message.message}</p>
-                          <p
-                            className={`text-xs mt-1 ${
-                              message.sender_type === 'admin' ? 'text-blue-100' : 'text-gray-500'
-                            }`}
-                          >
-                            {formatTime(message.created_at)}
-                          </p>
+                          <div className="flex items-center gap-2 mt-1 justify-between">
+                            <p
+                              className={`text-xs ${
+                                message.sender_type === 'admin' ? 'text-blue-100' : 'text-gray-500'
+                              }`}
+                            >
+                              {formatTime(message.created_at)}
+                            </p>
+                            {/* FIX: Show read status for admin's own messages */}
+                            {message.sender_type === 'admin' && (
+                              <span className={`text-xs ${message.is_read ? 'text-blue-200' : 'text-blue-300'}`}>
+                                {message.is_read ? '✓✓' : '✓'}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -290,8 +368,14 @@ const AdminChatPage = () => {
                         <div className="bg-gray-200 rounded-lg px-4 py-2">
                           <div className="flex space-x-1">
                             <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
-                            <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                            <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                            <div
+                              className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"
+                              style={{ animationDelay: '0.1s' }}
+                            ></div>
+                            <div
+                              className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"
+                              style={{ animationDelay: '0.2s' }}
+                            ></div>
                           </div>
                         </div>
                       </div>

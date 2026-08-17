@@ -40,16 +40,19 @@ const orderController = {
         }
     },
 
-    // LẤY TẤT CẢ ĐƠN HÀNG (CHỈ DÀNH CHO ADMIN)
-    getAllOrdersForAdmin: async (req, res) => {
-        try {
-            const orders = await Order.getAll();
-            res.json(orders);
-        } catch (error) {
-            console.error('Error fetching all orders for admin:', error);
-            res.status(500).json({ error: 'Failed to fetch all orders' });
-        }
-    },
+    // Thay thế hàm lấy tất cả đơn hàng hiện tại bằng hàm này:
+    getAllOrders: async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 50; // Lấy 50 đơn 1 trang cho mượt
+        
+        const result = await Order.getAll(page, limit);
+        res.status(200).json({ success: true, ...result });
+    } catch (error) {
+        console.error('Lỗi lấy danh sách đơn hàng:', error);
+        res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+},
 
     // CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG (CHỈ DÀNH CHO ADMIN)
     updateOrderStatus: async (req, res) => {

@@ -1,274 +1,435 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import ProductList from '../../components/ProductList';
-import ErrorBoundary from '../../components/ErrorBoundary';
-import { getAllProducts, getVariants, getActiveBanners } from '../../services/api';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 const HomePage = () => {
-  const [categoryProducts, setCategoryProducts] = useState({});
+  const navigate = useNavigate();
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [banners, setBanners] = useState([]);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  
+  // 📖 INFINITE SCROLL: State cho phân trang
+  const [personalizedProducts, setPersonalizedProducts] = useState([]);
+  const [isPersonalized, setIsPersonalized] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  
+  const hoverTimersRef = useRef({});
+  const observerRef = useRef();
 
+  // 📌 INTERSECTION OBSERVER: Khi scroll tới sản phẩm cuối, tải thêm
+  const lastProductElementRef = useCallback(node => {
+    if (isLoadingMore) return;
+    if (observerRef.current) observerRef.current.disconnect();
+    
+    observerRef.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+        setPage(prevPage => prevPage + 1);
+      }
+    }, { threshold: 0.1 });
+    
+    if (node) observerRef.current.observe(node);
+  }, [isLoadingMore, hasMore]);
+
+  // 1️⃣ FETCH INITIAL DATA (Products, Categories, Banners)
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchInitialData = async () => {
       try {
-        const [productsRes, variantsRes, bannersRes] = await Promise.all([
-          getAllProducts(),
-          getVariants(),
-          getActiveBanners(),
+        const [prodRes, catRes, bannerRes] = await Promise.all([
+          axios.get('http://localhost:5000/api/products'),
+          axios.get('http://localhost:5000/api/categories'),
+          axios.get('http://localhost:5000/api/banners/active')
         ]);
-        console.log('API response (getAllProducts) - Raw Data:', productsRes.data);
-        console.log('API response (getVariants) - Raw Data:', variantsRes.data);
-        console.log('API response (getActiveBanners) - Raw Data:', bannersRes.data);
-
-        // Lưu banners
-        setBanners(bannersRes.data || []);
-
-        // Kiểm tra dữ liệu sản phẩm
-        const rawProducts = productsRes.data || [];
-        if (!Array.isArray(rawProducts)) {
-          throw new Error('Dữ liệu từ getAllProducts không phải là mảng: ' + JSON.stringify(rawProducts));
-        }
-        const validProducts = rawProducts.filter(p => p && p.product_id && p.name && p.category_name);
-        const validVariants = variantsRes.data.filter(v => v.product_id && v.sku && v.price);
-        const variantMap = {};
-        validVariants.forEach(v => {
-          if (!variantMap[v.product_id]) variantMap[v.product_id] = [];
-          variantMap[v.product_id].push(v);
-        });
-        const combinedProducts = validProducts.map(product => ({
-          ...product,
-          name: product.name || `Product ${product.product_id}`,
-          description: product.description || 'No description provided',
-          brand_name: product.brand_name || 'Unknown Brand',
-          price: variantMap[product.product_id]?.[0]?.price || 0, 
-          variants: variantMap[product.product_id] || [],
-        }));
-
-        const groupedByCategory = combinedProducts.reduce((acc, product) => {
-          const category = product.category_name || 'Unknown Category';
-          if (!acc[category]) acc[category] = [];
-          acc[category].push(product);
-          return acc;
-        }, {});
-        const topCategories = Object.keys(groupedByCategory).slice(0, 5);
-        const limitedCategoryProducts = {};
-        topCategories.forEach(category => {
-          limitedCategoryProducts[category] = groupedByCategory[category];
-        });
-
-        setCategoryProducts(limitedCategoryProducts);
-        setLoading(false);
+        setProducts(prodRes.data || []);
+        setCategories(catRes.data || []);
+        setBanners(bannerRes.data || []);
       } catch (error) {
-        console.error('Error fetching data:', error);
-        setError('Không thể tải danh sách sản phẩm. Vui lòng thử lại. Chi tiết: ' + error.message);
+        console.error('Error fetching initial data:', error);
+      } finally {
         setLoading(false);
       }
     };
-
-    fetchData();
+    fetchInitialData();
   }, []);
 
-  // Auto-slide banner
+  // 2️⃣ FETCH RECOMMENDATIONS (Infinite Scroll)
   useEffect(() => {
-    if (banners.length <= 1) return;
+    const fetchRecommendations = async () => {
+      if (!hasMore) return;
+      
+      setIsLoadingMore(true);
+      try {
+        const sessionId = localStorage.getItem('session_id') || '';
+        const token = localStorage.getItem('token');
+        
+        const res = await axios.get(
+          `http://localhost:5000/api/recommendations/homepage?page=${page}&limit=10`,
+          {
+            headers: { 
+              'x-session-id': sessionId,
+              ...(token && { Authorization: `Bearer ${token}` })
+            }
+          }
+        );
 
+        if (res.data.success) {
+          setPersonalizedProducts(prev => {
+            // ✅ Append mode: Nối danh sách, loại trùng lặp
+            const newItems = res.data.data.filter(
+              newItem => !prev.some(existingItem => existingItem.product_id === newItem.product_id)
+            );
+            return [...prev, ...newItems];
+          });
+          setIsPersonalized(res.data.is_personalized);
+          setHasMore(res.data.hasMore);
+        }
+      } catch (error) {
+        console.error('Error fetching recommendations:', error);
+      } finally {
+        setIsLoadingMore(false);
+      }
+    };
+
+    fetchRecommendations();
+  }, [page, hasMore]);
+
+  // Lọc banner hợp lệ: Phải active, nằm trong khoảng ngày
+  const getActiveBanners = () => {
+    const now = new Date();
+    
+    return banners
+      .filter(banner => {
+        // Kiểm tra is_active
+        if (!banner.is_active) return false;
+        
+        // Kiểm tra ngày bắt đầu
+        if (banner.start_date) {
+          const startDate = new Date(banner.start_date);
+          if (now < startDate) return false;
+        }
+        
+        // Kiểm tra ngày kết thúc
+        if (banner.end_date) {
+          const endDate = new Date(banner.end_date);
+          if (now > endDate) return false;
+        }
+        
+        return true;
+      })
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+  };
+
+  const activeBanners = getActiveBanners();
+
+  // 🖱️ HOVER TRACKING: Tính toán khi user rê chuột vào ảnh sản phẩm (độ trễ 1 giây)
+  const handleMouseEnter = (productId, categoryId) => {
+    // Tránh việc lướt chuột qua vô tình cũng tính, ta set độ trễ 1 giây
+    hoverTimersRef.current[productId] = setTimeout(() => {
+      const sessionId = localStorage.getItem('session_id');
+      axios.post('http://localhost:5000/api/tracking', {
+        product_id: productId,
+        category_id: categoryId,
+        interaction_type: 'hover',
+        session_id: sessionId
+      }).catch(err => console.log('Hover tracking silent fail:', err.message));
+    }, 1000);
+  };
+
+  // 🖱️ HOVER TRACKING: Hủy tracking nếu rời chuột sớm hơn 1 giây
+  const handleMouseLeave = (productId) => {
+    if (hoverTimersRef.current[productId]) {
+      clearTimeout(hoverTimersRef.current[productId]);
+      delete hoverTimersRef.current[productId];
+    }
+  };
+
+  // Auto carousel - nhảy sang banner tiếp theo sau 3 giây
+  useEffect(() => {
+    if (activeBanners.length === 0) return;
+    
     const interval = setInterval(() => {
-      setCurrentBannerIndex((prev) => (prev + 1) % banners.length);
-    }, 5000); // Chuyển banner sau mỗi 5 giây
+      setCurrentBannerIndex((prev) => (prev + 1) % activeBanners.length);
+    }, 3000);
 
     return () => clearInterval(interval);
-  }, [banners]);
+  }, [activeBanners]);
 
-  const nextBanner = () => {
-    setCurrentBannerIndex((prev) => (prev + 1) % banners.length);
-  };
+  // Lấy 3 danh mục Gốc: Áo, Quần & Váy, Khác
+  const parentCategories = categories.filter(c => !c.parent_id);
 
-  const prevBanner = () => {
-    setCurrentBannerIndex((prev) => (prev - 1 + banners.length) % banners.length);
-  };
-
-  // Debug: Log banner hiện tại
+  // Debug log
   useEffect(() => {
-    if (banners.length > 0 && banners[currentBannerIndex]) {
-      console.log('Current Banner:', {
-        index: currentBannerIndex,
-        title: banners[currentBannerIndex].title,
-        link: banners[currentBannerIndex].link_url,
-        image: banners[currentBannerIndex].image_url
-      });
-    }
-  }, [currentBannerIndex, banners]);
+    console.log('📊 CATEGORIES DEBUG INFO:');
+    console.log('Total categories:', categories.length);
+    console.log('Parent categories:', parentCategories.length, parentCategories.map(c => ({ id: c.category_id, name: c.name })));
+    
+    parentCategories.forEach(parent => {
+      const children = categories.filter(c => c.parent_id === parent.category_id);
+      console.log(`  ${parent.name} (ID ${parent.category_id}): ${children.length} con`, children.map(c => c.name));
+    });
+  }, [categories, parentCategories]);
+
+  if (loading) return <div className="text-center py-20 mt-16 text-gray-500">Đang tải bộ sưu tập mới nhất...</div>;
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      {/* Banner Carousel */}
-      {banners.length > 0 && (
-        <div className="relative w-full bg-white shadow-lg mb-8">
-          <div className="relative h-64 md:h-96 overflow-hidden">
-            {banners.map((banner, index) => {
-              const isActive = index === currentBannerIndex;
-              
-              // Xử lý link cho banner hiện tại
-              const url = banner.link_url ? banner.link_url.trim() : '';
-              const isLocalhost = url && (url.includes('localhost') || url.includes('127.0.0.1'));
-              const isExternalLink = url && (url.startsWith('http://') || url.startsWith('https://')) && !isLocalhost;
-              
-              // Lấy path từ URL nếu là localhost
-              let internalPath = url;
-              if (isLocalhost && url) {
-                try {
-                  const urlObj = new URL(url);
-                  internalPath = urlObj.pathname;
-                } catch (e) {
-                  internalPath = url;
+    <>
+      {/* BANNER - LẤY TỪ DATABASE (Auto Carousel - 3s) */}
+      {activeBanners.length > 0 ? (
+        <div className="mt-14 md:mt-16 bg-gray-900 text-white overflow-hidden">
+          {(() => {
+            const banner = activeBanners[currentBannerIndex % activeBanners.length];
+            
+            const handleBannerClick = () => {
+              console.log('Banner clicked:', banner);
+              console.log('Link URL:', banner.link_url);
+              if (banner.link_url) {
+                console.log('Navigating to:', banner.link_url);
+                // Check nếu là full URL (http/https) thì dùng window.location.href
+                if (banner.link_url.startsWith('http://') || banner.link_url.startsWith('https://')) {
+                  window.location.href = banner.link_url;
+                } else {
+                  // Nếu là relative path (bắt đầu bằng /) thì dùng navigate
+                  navigate(banner.link_url);
                 }
+              } else {
+                console.log('No link_url found');
               }
-              
-              return (
-                <div
-                  key={banner.banner_id}
-                  className={`absolute inset-0 transition-opacity duration-700 ${
-                    isActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-                  }`}
-                >
-                  {isExternalLink ? (
-                    <a href={url} target="_blank" rel="noopener noreferrer" className="block w-full h-full relative">
-                      <img
-                        src={banner.image_url}
-                        alt={banner.title}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6 text-white pointer-events-none">
-                        <h3 className="text-2xl md:text-4xl font-bold mb-2">{banner.title}</h3>
-                        {banner.description && (
-                          <p className="text-sm md:text-lg">{banner.description}</p>
-                        )}
-                      </div>
-                    </a>
-                  ) : url ? (
-                    <Link to={isLocalhost ? internalPath : url} className="block w-full h-full relative">
-                      <img
-                        src={banner.image_url}
-                        alt={banner.title}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6 text-white pointer-events-none">
-                        <h3 className="text-2xl md:text-4xl font-bold mb-2">{banner.title}</h3>
-                        {banner.description && (
-                          <p className="text-sm md:text-lg">{banner.description}</p>
-                        )}
-                      </div>
-                    </Link>
-                  ) : (
-                    <div className="w-full h-full relative">
-                      <img
-                        src={banner.image_url}
-                        alt={banner.title}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6 text-white pointer-events-none">
-                        <h3 className="text-2xl md:text-4xl font-bold mb-2">{banner.title}</h3>
-                        {banner.description && (
-                          <p className="text-sm md:text-lg">{banner.description}</p>
+            };
+            
+            return (
+              <div 
+                key={banner.id} 
+                className="relative cursor-pointer"
+                onClick={handleBannerClick}
+              >
+                {/* Banner với ảnh nền */}
+                {banner.image_url ? (
+                  <div className="relative h-64 sm:h-80 md:h-[420px] lg:h-[500px] transition-opacity duration-500 bg-gray-200">
+                    <img 
+                      src={banner.image_url} 
+                      alt={banner.title} 
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-full object-cover animate-fadeIn"
+                    />
+                    <div className="absolute inset-0 bg-black opacity-40"></div>
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="container mx-auto px-4">
+                        <h1 className="text-2xl sm:text-4xl md:text-6xl font-extrabold mb-3 md:mb-4">{banner.title}</h1>
+                        {banner.description && <p className="text-lg text-gray-200 mb-6">{banner.description}</p>}
+                        {banner.link_url && (
+                          <button 
+                            onClick={handleBannerClick}
+                            className="inline-block px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-bold uppercase tracking-widest transition duration-300"
+                          >
+                            {banner.button_text || 'Xem chi tiết'}
+                          </button>
                         )}
                       </div>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                  </div>
+                ) : (
+                  /* Fallback nếu không có ảnh */
+                  <div className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 py-20">
+                    <div className="container mx-auto px-4">
+                      <h1 className="text-4xl md:text-6xl font-extrabold mb-4">{banner.title}</h1>
+                      {banner.description && <p className="text-lg text-gray-300 mb-6">{banner.description}</p>}
+                      {banner.link_url && (
+                        <button 
+                          onClick={handleBannerClick}
+                          className="inline-block px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-bold uppercase tracking-widest transition duration-300"
+                        >
+                          {banner.button_text || 'Xem chi tiết'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
-          {/* Navigation Arrows */}
-          {banners.length > 1 && (
-            <>
-              <button
-                onClick={prevBanner}
-                className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white p-2 md:p-4 rounded-full shadow-xl transition-all duration-300 hover:scale-110 z-20"
-                aria-label="Banner trước"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-8 md:w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <button
-                onClick={nextBanner}
-                className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white p-2 md:p-4 rounded-full shadow-xl transition-all duration-300 hover:scale-110 z-20"
-                aria-label="Banner tiếp theo"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-8 md:w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </>
-          )}
-
-          {/* Dots Indicator */}
-          {banners.length > 1 && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 z-20">
-              {banners.map((_, index) => (
+          {/* Carousel Indicators - dấu chấm chỉ vị trí banner */}
+          {activeBanners.length > 1 && (
+            <div className="flex justify-center gap-2 py-4 bg-gray-900" onClick={(e) => e.stopPropagation()}>
+              {activeBanners.map((_, idx) => (
                 <button
-                  key={index}
-                  onClick={() => setCurrentBannerIndex(index)}
-                  className={`transition-all duration-300 rounded-full ${
-                    index === currentBannerIndex 
-                      ? 'w-8 md:w-10 h-3 md:h-4 bg-white' 
-                      : 'w-3 md:w-4 h-3 md:h-4 bg-white/60 hover:bg-white/80'
+                  key={idx}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentBannerIndex(idx);
+                  }}
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    idx === currentBannerIndex % activeBanners.length ? 'bg-red-600 w-8' : 'bg-gray-600'
                   }`}
-                  aria-label={`Chuyển đến banner ${index + 1}`}
+                  aria-label={`Go to banner ${idx + 1}`}
                 />
               ))}
             </div>
           )}
         </div>
+      ) : (
+        /* Default banner nếu không có banner từ database */
+        <div className="mt-14 md:mt-16 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white">
+          <div className="container mx-auto px-4 py-20 flex flex-col md:flex-row items-center justify-between">
+            <div className="md:w-1/2 mb-10 md:mb-0">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold mb-4 leading-tight">
+                Khám Phá <span className="text-red-500">Thời Trang</span> Của Bạn
+              </h1>
+              <p className="text-lg text-gray-300 mb-6">Bộ sưu tập mới nhất với phong cách hiện đại và chất lượng cao</p>
+              <Link to="/" className="inline-block px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-bold uppercase tracking-widest transition duration-300">
+                Mua Sắm Ngay
+              </Link>
+            </div>
+            <div className="md:w-1/2 text-center">
+              <div className="text-8xl font-extrabold text-gray-700 opacity-20">VIBETHREAD</div>
+            </div>
+          </div>
+        </div>
       )}
 
-      <div className="container mx-auto py-8 px-4">
-      <ErrorBoundary>
-        {loading ? (
-          <p className="text-center">Loading...</p>
-        ) : error ? (
-          <p className="text-center text-red-600">{error}</p>
-        ) : Object.keys(categoryProducts).length === 0 ? (
-          <p className="text-center text-red-600">Không có danh mục nào để hiển thị.</p>
-        ) : (
-          Object.keys(categoryProducts).map((category, index) => (
-            <div key={index} className="mb-8">
-              <h2
-                className="relative text-4xl md:text-5xl font-extrabold mb-6 tracking-widest uppercase text-center
-                           py-6 rounded-2xl shadow-2xl animate-fade-in overflow-hidden"
-                style={{
-                  letterSpacing: '4px',
-                  textShadow: 'none',
-                  transition: 'transform 0.2s',
-                  background: 'linear-gradient(120deg, #f8fafc 0%, #fbc2eb 40%, #a6c1ee 100%)'
-                }}
-              >
-                <span
-                  className="pointer-events-none absolute inset-0 rounded-2xl"
-                  style={{
-                    background: 'radial-gradient(circle at 50% 50%, #fbc2eb55 0%, #a6c1ee33 60%, transparent 100%)',
-                    zIndex: 1
-                  }}
-                  aria-hidden="true"
-                />
-                <span className="relative z-10 inline-block transform hover:scale-110 transition-transform duration-300 drop-shadow-xl text-[#22336b]">
-                  {category}
-                </span>
-              </h2>
-              <ProductList
-                products={categoryProducts[category]}
-                onAddToCart={() => {}}
-              />
-            </div>
-          ))
-        )}
-      </ErrorBoundary>
+      {/* CATEGORIES GRID - 2x2 LAYOUT */}
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {parentCategories.slice(0, 4).map(parent => {
+            // Lấy ID của Cha và tất cả ID của Con
+            const validCategoryIds = [
+              parent.category_id.toString(), 
+              ...categories.filter(c => c.parent_id === parent.category_id).map(c => c.category_id.toString())
+            ];
+
+            // Tìm sản phẩm thuộc nhánh này
+            const categoryProducts = products.filter(p => 
+              p.category_id && validCategoryIds.includes(p.category_id.toString())
+            );
+
+            if (categoryProducts.length === 0) return null;
+
+            return (
+              <div key={parent.category_id} className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition duration-300">
+                {/* Category Header */}
+                <div className="bg-gray-50 border-b border-gray-200 p-6">
+                  <h2 className="text-2xl font-extrabold uppercase tracking-wider text-gray-900">{parent.name}</h2>
+                </div>
+                
+                {/* Products Grid - 4 SẢN PHẨM (2x2) */}
+                <div className="p-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    {categoryProducts.slice(0, 4).map(product => (
+                      <Link key={product.product_id} to={`/products/${product.product_id}`} className="group block">
+                        <div 
+                          className="relative overflow-hidden bg-gray-100 aspect-[3/4] mb-3"
+                          onMouseEnter={() => handleMouseEnter(product.product_id, product.category_id)}
+                          onMouseLeave={() => handleMouseLeave(product.product_id)}
+                        >
+                          <img 
+                            src={product.primary_image_url} 
+                            alt={product.name} 
+                            loading="lazy"
+                            decoding="async"
+                            className="object-cover w-full h-full transform group-hover:scale-105 transition duration-500 animate-fadeIn"
+                          />
+                        </div>
+                        <h3 className="text-xs text-gray-700 font-medium truncate">{product.name}</h3>
+                        <p className="text-gray-900 font-semibold mt-1 text-sm">
+                          {product.variants?.[0]?.price ? '$' + Number(product.variants[0].price).toLocaleString('en-US') : 'Liên hệ'}
+                        </p>
+                      </Link>
+                    ))}
+                  </div>
+
+                  {/* View All Button */}
+                  {categoryProducts.length > 4 && (
+                    <div className="flex justify-center mt-6 pt-6 border-t border-gray-200">
+                      <Link 
+                        to={`/category/${parent.category_id}`} 
+                        className="px-6 py-2 bg-gray-900 text-white text-xs font-bold uppercase tracking-wider hover:bg-gray-700 transition duration-300"
+                      >
+                        Xem tất cả {parent.name}
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
+
+      {/* PERSONALIZED RECOMMENDATIONS SECTION */}
+      {personalizedProducts.length > 0 && (
+        <div className="container mx-auto px-4 py-12">
+          <div className="mb-24">
+            <div className="flex justify-between items-end mb-8 border-b pb-4">
+              <h2 className="text-3xl font-extrabold uppercase tracking-wider text-gray-900">
+                {isPersonalized ? "Dành Riêng Cho Bạn" : "Đang Thịnh Hành"}
+              </h2>
+            </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+              {personalizedProducts.map((product, index) => {
+                // 📌 Gắn ref vào sản phẩm cuối cùng để trigger infinite scroll
+                const isLastElement = personalizedProducts.length === index + 1;
+                
+                return (
+                  <Link 
+                    ref={isLastElement ? lastProductElementRef : null}
+                    key={product.product_id} 
+                    to={`/products/${product.product_id}`} 
+                    className="group block relative"
+                  >
+                    {/* NẾU LÀ HÀNG MỚI CHƯA CÓ LƯỢT MUA - Gắn Badge NEW để thu hút */}
+                    {product.total_sold === 0 && (
+                      <span className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded z-10">
+                        NEW
+                      </span>
+                    )}
+                    
+                    <div 
+                      className="relative overflow-hidden bg-gray-100 aspect-[3/4] mb-4"
+                      onMouseEnter={() => handleMouseEnter(product.product_id, product.category_id)}
+                      onMouseLeave={() => handleMouseLeave(product.product_id)}
+                    >
+                      <img 
+                        src={product.primary_image_url} 
+                        alt={product.name} 
+                        loading="lazy"
+                        decoding="async"
+                        className="object-cover w-full h-full transform group-hover:scale-105 transition duration-500 animate-fadeIn"
+                      />
+                    </div>
+                    <h3 className="text-sm text-gray-700 font-medium truncate">{product.name}</h3>
+                    <div className="flex justify-between items-center mt-1">
+                      <p className="text-red-600 font-bold">
+                        {product.price ? '$' + Number(product.price).toLocaleString('en-US') : 'Liên hệ'}
+                      </p>
+                      <p className="text-xs text-gray-400">Đã bán {product.total_sold || 0}</p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+            
+            {/* 📥 LOADING SPINNER - Hiển thị khi đang load thêm */}
+            {isLoadingMore && (
+              <div className="flex justify-center mt-12">
+                <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-300 border-t-red-600"></div>
+              </div>
+            )}
+            
+            {/* ✅ HẾT HÀNG - Hiển thị khi không còn sản phẩm */}
+            {!hasMore && personalizedProducts.length > 0 && (
+              <div className="text-center mt-12 text-gray-500 text-lg">
+                🎉 Đã tải hết sản phẩm phù hợp với bạn!
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

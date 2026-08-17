@@ -42,13 +42,13 @@ exports.getAllUsers = async (req, res) => {
         }
 
         // Count total
-        const countQuery = query.replace(/SELECT.*FROM/, 'SELECT COUNT(*) as total FROM');
+        const countQuery = `SELECT COUNT(*) as total FROM users WHERE 1=1${query.split('WHERE 1=1')[1].split('ORDER BY')[0]}`;
         const [countResult] = await pool.query(countQuery, params);
         const total = countResult[0].total;
 
         // Pagination
         const offset = (page - 1) * limit;
-        query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+        query += ' ORDER BY user_id ASC LIMIT ? OFFSET ?';
         params.push(parseInt(limit), offset);
 
         const [users] = await pool.query(query, params);
@@ -214,97 +214,5 @@ exports.updateUser = async (req, res) => {
     } catch (error) {
         console.error('Error updating user:', error);
         res.status(500).json({ error: 'Lỗi khi cập nhật người dùng' });
-    }
-};
-
-// Lock/Unlock user
-exports.toggleLockUser = async (req, res) => {
-    try {
-        const { userId } = req.params;
-        const { is_locked } = req.body;
-
-        if (is_locked === undefined) {
-            return res.status(400).json({ error: 'Trường is_locked là bắt buộc' });
-        }
-
-        // Check if user exists
-        const [users] = await pool.query('SELECT user_id FROM users WHERE user_id = ?', [userId]);
-        if (users.length === 0) {
-            return res.status(404).json({ error: 'Không tìm thấy người dùng' });
-        }
-
-        await pool.query('UPDATE users SET is_locked = ? WHERE user_id = ?', [is_locked, userId]);
-
-        res.json({ 
-            message: is_locked ? 'Đã khoá tài khoản' : 'Đã mở khoá tài khoản'
-        });
-    } catch (error) {
-        console.error('Error toggling lock user:', error);
-        res.status(500).json({ error: 'Lỗi khi cập nhật trạng thái khoá' });
-    }
-};
-
-// Change user role
-exports.changeUserRole = async (req, res) => {
-    try {
-        const { userId } = req.params;
-        const { role } = req.body;
-
-        if (!role || !['customer', 'admin'].includes(role)) {
-            return res.status(400).json({ error: 'Role phải là customer hoặc admin' });
-        }
-
-        // Check if user exists
-        const [users] = await pool.query('SELECT user_id, role FROM users WHERE user_id = ?', [userId]);
-        if (users.length === 0) {
-            return res.status(404).json({ error: 'Không tìm thấy người dùng' });
-        }
-
-        await pool.query('UPDATE users SET role = ? WHERE user_id = ?', [role, userId]);
-
-        res.json({ message: 'Cập nhật vai trò thành công' });
-    } catch (error) {
-        console.error('Error changing role:', error);
-        res.status(500).json({ error: 'Lỗi khi cập nhật vai trò' });
-    }
-};
-
-// Soft delete user
-exports.deleteUser = async (req, res) => {
-    try {
-        const { userId } = req.params;
-
-        // Check if user exists
-        const [users] = await pool.query('SELECT user_id FROM users WHERE user_id = ?', [userId]);
-        if (users.length === 0) {
-            return res.status(404).json({ error: 'Không tìm thấy người dùng' });
-        }
-
-        await pool.query(
-            'UPDATE users SET is_deleted = TRUE, deleted_at = NOW() WHERE user_id = ?',
-            [userId]
-        );
-
-        res.json({ message: 'Đã xoá người dùng' });
-    } catch (error) {
-        console.error('Error deleting user:', error);
-        res.status(500).json({ error: 'Lỗi khi xoá người dùng' });
-    }
-};
-
-// Restore deleted user
-exports.restoreUser = async (req, res) => {
-    try {
-        const { userId } = req.params;
-
-        await pool.query(
-            'UPDATE users SET is_deleted = FALSE, deleted_at = NULL WHERE user_id = ?',
-            [userId]
-        );
-
-        res.json({ message: 'Đã khôi phục người dùng' });
-    } catch (error) {
-        console.error('Error restoring user:', error);
-        res.status(500).json({ error: 'Lỗi khi khôi phục người dùng' });
     }
 };

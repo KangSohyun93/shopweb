@@ -61,7 +61,7 @@ const AdminOrderDetail = () => {
   if (loading) return <p className="text-center py-10">Đang tải...</p>;
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-4 sm:py-8 px-3 sm:px-4">
         {error && <p className="text-center text-red-600 bg-red-100 p-3 rounded-md mb-4">{error}</p>}
         {updateMessage && <p className="text-center text-green-600 bg-green-100 p-3 rounded-md mb-4">{updateMessage}</p>}
 
@@ -69,17 +69,17 @@ const AdminOrderDetail = () => {
             <p className="text-center text-gray-600">Không tìm thấy đơn hàng.</p>
         ) : (
             <>
-                <h2 className="text-3xl font-bold mb-6 text-gray-800">Chi tiết đơn hàng #{order.order_id}</h2>
+                <h2 className="text-xl sm:text-3xl font-bold mb-4 sm:mb-6 text-gray-800">Chi tiết đơn hàng #{order.order_id}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="md:col-span-2 space-y-6">
-                        <div className="border rounded-lg p-6 bg-white shadow-md">
+                        <div className="border rounded-lg p-4 sm:p-6 bg-white shadow-md">
                             <h3 className="text-xl font-semibold mb-4">Sản phẩm trong đơn</h3>
                             {order.items?.length === 0 ? (
                                 <p className="text-gray-600">Không có sản phẩm.</p>
                             ) : (
                                 <div className="space-y-4">
                                 {order.items.map((item) => (
-                                    <div key={item.order_item_id} className="flex items-start justify-between border-b pb-4 last:border-b-0">
+                                    <div key={item.order_item_id} className="flex flex-col sm:flex-row items-start justify-between border-b pb-4 last:border-b-0 gap-3">
                                         <div className="flex items-start flex-grow">
                                             <Link to={`/products/${item.product_id}`}>
                                                 <img 
@@ -92,12 +92,15 @@ const AdminOrderDetail = () => {
                                                 <Link to={`/products/${item.product_id}`} className="font-semibold text-lg hover:text-blue-600 transition-colors">
                                                     {item.product_name}
                                                 </Link>
-                                                <p className="text-gray-500">Phân loại: Size {item.size || 'N/A'}</p>
+                                                <p className="text-gray-500">
+                                                    Phân loại: Size {item.size || 'N/A'}
+                                                    {item.color && item.color !== 'default' ? `, Màu ${item.color}` : ''}
+                                                </p>
                                                 <p className="text-gray-500">Số lượng: {item.quantity}</p>
                                             </div>
                                         </div>
-                                        <p className="font-semibold text-gray-800 text-right min-w-[120px]">
-                                            {(Number(item.price) * Number(item.quantity)).toLocaleString('vi-VN')} VND
+                                        <p className="font-semibold text-gray-800 sm:text-right min-w-[100px] text-sm sm:text-base">
+                                            {(Number(item.price) * Number(item.quantity)).toLocaleString('en-US')} $
                                         </p>
                                     </div>
                                 ))}
@@ -107,19 +110,19 @@ const AdminOrderDetail = () => {
                     </div>
 
                     <div className="space-y-6">
-                        <div className="border rounded-lg p-6 bg-white shadow-md">
+                        <div className="border rounded-lg p-4 sm:p-6 bg-white shadow-md">
                             <h3 className="text-xl font-semibold mb-4">Thông tin đơn hàng</h3>
                             <div className="space-y-2">
                                 <p><strong>Khách hàng:</strong> {order.username || 'N/A'} ({order.user_email || 'N/A'})</p>
                                 <p><strong>Ngày đặt:</strong> {new Date(order.created_at).toLocaleString('vi-VN')}</p>
-                                <p><strong>Tổng tiền:</strong> <span className="font-bold text-xl text-red-600">{Number(order.total_amount).toLocaleString('vi-VN')} VND</span></p>
+                                <p><strong>Tổng tiền:</strong> <span className="font-bold text-xl text-red-600">{Number(order.total_amount).toLocaleString('en-US')} $</span></p>
                                 {order.promotion_code && <p><strong>Mã giảm giá:</strong> {order.promotion_code}</p>}
                                 <p><strong>Địa chỉ:</strong> {`${order.recipient_name}, ${order.street}, ${order.city}, ${order.country}`}</p>
                                 <p><strong>Số điện thoại:</strong> {order.phone}</p>
                             </div>
                         </div>
 
-                        <div className="border rounded-lg p-6 bg-white shadow-md">
+                        <div className="border rounded-lg p-4 sm:p-6 bg-white shadow-md">
                             <h3 className="text-xl font-semibold mb-4">Cập nhật trạng thái</h3>
                             <div className="space-y-3">
                                 <p><strong>Trạng thái hiện tại:</strong> <span className="font-bold text-blue-600">{statusLabels[order.status] || order.status}</span></p>

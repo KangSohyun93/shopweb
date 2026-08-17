@@ -29,7 +29,7 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="container mx-auto py-8 max-w-md">
+    <div className="container mx-auto py-6 md:py-8 px-4 max-w-md mt-14 md:mt-16">
       <h2 className="text-2xl font-bold mb-6 text-center">Quên mật khẩu</h2>
       <div className="bg-white p-8 rounded-lg shadow-md">
         <p className="text-gray-600 mb-6 text-center">

@@ -1,7 +1,13 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const cors = require('cors');
+require('dotenv').config();
+
 const pool = require('./config/db');
+const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
+
+// Routes
 const productRoutes = require('./routes/productRoutes');
 const userRoutes = require('./routes/userRoutes');
 const orderRoutes = require('./routes/orderRoutes');
@@ -14,15 +20,18 @@ const brandRoutes = require('./routes/brandRoutes');
 const bannerRoutes = require('./routes/bannerRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const adminUserRoutes = require('./routes/adminUserRoutes');
-const cors = require('cors');
-require('dotenv').config();
+const recommendationRoutes = require('./routes/recommendationRoutes');
+const aiRuleRoutes = require('./routes/aiRuleRoutes');
+const trackingRoutes = require('./routes/trackingRoutes');
+const vnpayRoutes = require('./routes/vnpayRoutes');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:3001',
-    methods: ['GET', 'POST']
+    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
   }
 });
 const port = process.env.PORT || 3000;
@@ -30,10 +39,6 @@ const port = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use((err, req, res, next) => {
-  console.error('Global error handler:', err.stack);
-  res.status(500).json({ error: 'Internal server error', details: err.message });
-});
 // Routes
 app.use('/api/products', productRoutes);
 app.use('/api/users', userRoutes);
@@ -48,8 +53,10 @@ app.use('/api/brands', brandRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/admin/users', adminUserRoutes);
-
-
+app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/ai-rules', aiRuleRoutes);
+app.use('/api/tracking', trackingRoutes);
+app.use('/api/vnpay', vnpayRoutes);
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to ShopWeb API' });
@@ -65,10 +72,10 @@ app.get('/test-db', async (req, res) => {
     res.status(500).json({ error: 'Database connection failed' });
   }
 });
-app.use((req, res, next) => {
-  console.log('No route matched:', req.path);
-  res.status(404).json({ error: 'Route not found' });
-});
+
+// Error handlers - MUST be at the end
+app.use(notFoundHandler);    // 404 handler
+app.use(errorHandler);       // Global error handler
 
 // Socket.IO for real-time chat
 const userSockets = new Map(); // userId -> socketId
@@ -85,7 +92,8 @@ io.on('connection', (socket) => {
     }
     userSockets.set(userId.toString(), socket.id);
     socket.userId = userId;
-    console.log(`User ${userId} joined with socket ${socket.id}`);
+    socket.join(`user:${userId}`); // Join user-specific room to support multi-tab sync
+    console.log(`User ${userId} joined with socket ${socket.id} and joined room user:${userId}`);
   });
 
   // Admin joins
@@ -109,44 +117,72 @@ io.on('connection', (socket) => {
   });
 
   // Send message
-  socket.on('chat:send-message', async (data) => {
+  socket.on('chat:send-message', async (data, callback) => {
     console.log('📨 Received chat:send-message event:', data);
     const { conversationId, message, senderType, senderId } = data;
+    
+    // Validate input
+    if (!conversationId || !message || !message.trim() || !senderType || !senderId) {
+      console.error('❌ Missing required fields');
+      if (callback) {
+        callback({
+          success: false,
+          error: 'Missing required fields: conversationId, message, senderType, senderId'
+        });
+      }
+      return;
+    }
     
     try {
       // Save message to database
       const Chat = require('./models/chat');
       console.log('💾 Saving message to database...');
       const newMessage = await Chat.sendMessage(conversationId, senderType, senderId, message);
-      console.log('✅ Message saved with ID:', newMessage);
+      
+      if (!newMessage) {
+        throw new Error('Failed to retrieve saved message');
+      }
+      
+      console.log('✅ Message saved with ID:', newMessage.message_id);
+      
+      // Send success callback to sender
+      if (callback) {
+        callback({
+          success: true,
+          data: newMessage
+        });
+      }
       
       // Get conversation details to find recipient
       const conversation = await Chat.getConversationById(conversationId);
+      if (!conversation) {
+        console.error('❌ Conversation not found');
+        return;
+      }
       
-      // Emit to sender
-      socket.emit('chat:message-sent', newMessage);
-      
-      // Emit to recipient
+      // Emit to recipient (but NOT to sender again)
       if (senderType === 'user') {
-        // Notify all admins
         io.to('admins').emit('chat:new-message', {
           ...newMessage,
           conversationId,
           userId: conversation.user_id
         });
       } else {
-        // Notify specific user
-        const userSocketId = userSockets.get(conversation.user_id.toString());
-        if (userSocketId) {
-          io.to(userSocketId).emit('chat:new-message', {
-            ...newMessage,
-            conversationId
-          });
-        }
+        // Notify specific user (supports multiple tabs/devices)
+        io.to(`user:${conversation.user_id}`).emit('chat:new-message', {
+          ...newMessage,
+          conversationId
+        });
       }
     } catch (error) {
-      console.error('Error sending message:', error);
-      socket.emit('chat:error', { message: 'Failed to send message' });
+      console.error('❌ Error sending message:', error);
+      if (callback) {
+        callback({
+          success: false,
+          error: error.message || 'Failed to send message'
+        });
+      }
+      socket.emit('chat:error', { message: 'Failed to send message', error: error.message });
     }
   });
 
@@ -154,16 +190,13 @@ io.on('connection', (socket) => {
   socket.on('chat:mark-read', async (conversationId) => {
     try {
       const Chat = require('./models/chat');
-      const senderType = socket.isAdmin ? 'user' : 'admin';
+      const senderType = socket.isAdmin ? 'admin' : 'user';
       await Chat.markAsRead(conversationId, senderType);
       
       // Notify the other party
       if (socket.isAdmin) {
         const conversation = await Chat.getConversationById(conversationId);
-        const userSocketId = userSockets.get(conversation.user_id.toString());
-        if (userSocketId) {
-          io.to(userSocketId).emit('chat:messages-read', conversationId);
-        }
+        io.to(`user:${conversation.user_id}`).emit('chat:messages-read', conversationId);
       } else {
         io.to('admins').emit('chat:messages-read', conversationId);
       }
@@ -177,13 +210,9 @@ io.on('connection', (socket) => {
     const { conversationId, isTyping } = data;
     
     if (socket.isAdmin) {
-      // Notify user
       const Chat = require('./models/chat');
       Chat.getConversationById(conversationId).then(conversation => {
-        const userSocketId = userSockets.get(conversation.user_id.toString());
-        if (userSocketId) {
-          io.to(userSocketId).emit('chat:typing', { conversationId, isTyping, isAdmin: true });
-        }
+        io.to(`user:${conversation.user_id}`).emit('chat:typing', { conversationId, isTyping, isAdmin: true });
       });
     } else {
       // Notify admins

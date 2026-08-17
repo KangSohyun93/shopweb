@@ -30,7 +30,7 @@ const productVariantController = {
     // Tạo biến thể mới (yêu cầu admin)
     createVariant: async (req, res) => {
         try {
-            const { product_id, sku, price, stock_quantity, weight, image_url, attributes } = req.body;
+            const { product_id, sku, size, price, stock_quantity, weight } = req.body;
 
             if (!product_id || !sku || !price || !stock_quantity) {
                 return res.status(400).json({ error: 'Missing required fields' });
@@ -39,11 +39,10 @@ const productVariantController = {
             const variantId = await ProductVariant.create({
                 product_id,
                 sku,
+                size,
                 price,
                 stock_quantity,
-                weight,
-                image_url,
-                attributes
+                weight
             });
             res.status(201).json({ id: variantId, message: 'Variant created successfully' });
         } catch (error) {
@@ -55,15 +54,14 @@ const productVariantController = {
     // Cập nhật biến thể (yêu cầu admin)
     updateVariant: async (req, res) => {
         try {
-            const { sku, price, stock_quantity, weight, image_url, attributes } = req.body;
+            const { sku, size, price, stock_quantity, weight } = req.body;
 
             const success = await ProductVariant.update(req.params.id, {
                 sku,
+                size,
                 price,
                 stock_quantity,
-                weight,
-                image_url,
-                attributes
+                weight
             });
             if (!success) {
                 return res.status(404).json({ error: 'Variant not found' });

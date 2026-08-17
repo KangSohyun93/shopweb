@@ -52,8 +52,8 @@ const Cart = {
 
         const cart_id = cartRows[0].cart_id;
         const [items] = await pool.query(
-            `SELECT ci.*, pv.sku, pv.size, pv.price, pv.image_url, pv.product_id, 
-                    p.name as product_name, p.primary_image_url
+            `SELECT ci.*, pv.sku, pv.size, pv.color, pv.price, pv.product_id, 
+                    p.product_id, p.name as product_name, p.primary_image_url
              FROM cart_items ci
              LEFT JOIN product_variants pv ON ci.variant_id = pv.variant_id
              LEFT JOIN products p ON pv.product_id = p.product_id

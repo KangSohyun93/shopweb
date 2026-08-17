@@ -40,8 +40,24 @@ const ProductItem = ({ product, variants }) => {
                     {product.name || 'Tên sản phẩm không có'}
                 </h3>
                 
+                {/* Đánh giá & Lượt bán */}
+                <div className="flex items-center gap-2 mt-2">
+                    <div className="flex items-center text-amber-500 text-sm">
+                        <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 20 20">
+                            <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/>
+                        </svg>
+                        <span className="ml-1 font-semibold text-gray-700 text-xs">
+                            {Number(product.avg_rating || 0).toFixed(1)}
+                        </span>
+                    </div>
+                    <span className="text-gray-300 text-xs">|</span>
+                    <span className="text-xs text-gray-500">
+                        Đã bán {product.sold_count || 0}
+                    </span>
+                </div>
+
                 <p className="text-lg font-medium text-red-600 mt-2">
-                    {displayPrice.toLocaleString('vi-VN')} VND
+                    {displayPrice.toLocaleString('en-US')} $
                 </p>
             </div>
             

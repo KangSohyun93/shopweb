@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createAddress, createOrder, getCart, getAddresses } from '../services/api'; 
+import Swal from 'sweetalert2';
+import { createAddress, createOrder, getCart, getAddresses, createVNPayPaymentUrl } from '../services/api'; 
 import axios from 'axios';
 
 const Checkout = () => {
     const navigate = useNavigate();
     const [cart, setCart] = useState(null);
+    const [selectedCartItems, setSelectedCartItems] = useState(new Set());
     const [addresses, setAddresses] = useState([]);
     const [selectedAddressId, setSelectedAddressId] = useState(''); 
     const [showNewAddressForm, setShowNewAddressForm] = useState(false); 
@@ -22,6 +24,7 @@ const Checkout = () => {
     const [appliedPromotion, setAppliedPromotion] = useState(null);
     const [error, setError] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false); 
+    const [paymentMethod, setPaymentMethod] = useState('cod'); 
   
     useEffect(() => {
         const initialFetch = async () => {
@@ -32,6 +35,19 @@ const Checkout = () => {
                 ]);
                 
                 setCart(cartResponse.data);
+                
+                // Đọc selected items từ localStorage
+                const selectedFromStorage = localStorage.getItem('selectedCartItems');
+                if (selectedFromStorage) {
+                    const parsed = JSON.parse(selectedFromStorage);
+                    const numericIds = parsed.map(id => Number(id));
+                    setSelectedCartItems(new Set(numericIds));
+                } else {
+                    // Nếu không có selected items, chọn tất cả
+                    if (cartResponse.data?.items) {
+                        setSelectedCartItems(new Set(cartResponse.data.items.map(item => Number(item.cart_item_id))));
+                    }
+                }
                 
                 const userAddresses = addressesResponse.data || [];
                 setAddresses(userAddresses);
@@ -53,16 +69,23 @@ const Checkout = () => {
         initialFetch();
     }, []);
 
+    const getSelectedItems = () => {
+        if (!cart || !cart.items) return [];
+        return cart.items.filter(item => selectedCartItems.has(item.cart_item_id));
+    };
+
     const calculateTotal = () => {
-        if (!cart || !cart.items) return 0;
-        const total = cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const selectedItems = getSelectedItems();
+        if (selectedItems.length === 0) return 0;
+        const total = selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
         return appliedPromotion ? appliedPromotion.new_total : total;
     };
 
     const handleApplyPromotion = async () => {
         if (!promotionCode) return setError('Vui lòng nhập mã khuyến mãi');
         try {
-            const initialTotal = cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            const selectedItems = getSelectedItems();
+            const initialTotal = selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
             const response = await axios.post(
                 'http://localhost:5000/api/promotions/apply', 
                 { code: promotionCode, total_amount: initialTotal },
@@ -115,25 +138,53 @@ const Checkout = () => {
             return;
         }
         
+        const selectedItems = getSelectedItems();
+        if (selectedItems.length === 0) {
+            setError('Vui lòng chọn ít nhất một sản phẩm để thanh toán.');
+            setIsSubmitting(false);
+            return;
+        }
+        
         try {
-            // Tính tổng giá gốc (chưa giảm) để gửi cho backend
-            const subtotal = cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            // Tính tổng giá gốc (chưa giảm) từ selected items
+            const subtotal = selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
             
             const orderData = {
                 address_id: addressIdToUse,
                 total_amount: subtotal, // Gửi giá gốc, backend sẽ tự apply promotion
                 promotion_code: appliedPromotion ? promotionCode : null,
-                items: cart.items.map((item) => ({
+                payment_method: paymentMethod,
+                items: selectedItems.map((item) => ({
                     variant_id: item.variant_id,
                     quantity: item.quantity,
                     price: item.price,
                 })),
             };
 
-            await createOrder(orderData);
+            const response = await createOrder(orderData);
             
-            alert('Đặt hàng thành công!');
-            navigate('/orders'); 
+            // Xóa danh sách sản phẩm đã thanh toán khỏi localStorage
+            localStorage.removeItem('selectedCartItems');
+            
+            if (paymentMethod === 'vnpay') {
+                const createdOrder = response.data;
+                // Gọi API lấy URL thanh toán VNPay
+                const vnpayRes = await createVNPayPaymentUrl(createdOrder.order_id, createdOrder.total_amount);
+                if (vnpayRes.data && vnpayRes.data.paymentUrl) {
+                    window.location.href = vnpayRes.data.paymentUrl;
+                } else {
+                    throw new Error('Không lấy được URL thanh toán VNPay');
+                }
+            } else {
+                Swal.fire({
+                    title: 'Đặt hàng thành công!',
+                    text: 'Đơn hàng của bạn đã được ghi nhận. Cảm ơn bạn đã mua hàng!',
+                    icon: 'success',
+                    confirmButtonColor: '#3085d6'
+                }).then(() => {
+                    navigate('/orders'); 
+                });
+            } 
 
         } catch (err) {
             console.error('Order error:', err.response?.data || err.message);
@@ -144,10 +195,10 @@ const Checkout = () => {
     };
 
     return (
-        <div className="container mx-auto py-8 px-4">
+        <div className="container mx-auto py-6 md:py-8 px-4 mt-14 md:mt-16">
             <h2 className="text-2xl font-bold mb-6">Thanh toán</h2>
             {error && <p className="text-red-500 bg-red-100 p-3 rounded-md mb-4">{error}</p>}
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
                     <h3 className="text-lg font-semibold mb-4">Thông tin giao hàng</h3>
                     <form onSubmit={handleSubmitOrder}>
@@ -180,8 +231,28 @@ const Checkout = () => {
                             <div className="flex"><input type="text" className="w-full border rounded-l-md px-3 py-2" value={promotionCode} onChange={(e) => setPromotionCode(e.target.value)} /><button type="button" className="bg-gray-500 text-white px-4 py-2 rounded-r-md hover:bg-gray-600" onClick={handleApplyPromotion}>Áp dụng</button></div>
                         </div>
 
-                        <button type="submit" className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400" disabled={isSubmitting}>
-                            {isSubmitting ? 'Đang xử lý...' : 'Hoàn tất Đặt hàng'}
+                        <div className="mb-6">
+                            <label className="block text-gray-700 font-semibold mb-2">Phương thức thanh toán</label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <label className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${paymentMethod === 'cod' ? 'border-blue-600 bg-blue-50/50 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}>
+                                    <input type="radio" name="paymentMethod" value="cod" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} className="mr-3 h-4 w-4 text-blue-600" />
+                                    <div>
+                                        <span className="font-semibold text-gray-900 block text-sm">Thanh toán khi nhận hàng</span>
+                                        <span className="text-gray-500 text-xs">COD</span>
+                                    </div>
+                                </label>
+                                <label className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${paymentMethod === 'vnpay' ? 'border-blue-600 bg-blue-50/50 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}>
+                                    <input type="radio" name="paymentMethod" value="vnpay" checked={paymentMethod === 'vnpay'} onChange={() => setPaymentMethod('vnpay')} className="mr-3 h-4 w-4 text-blue-600" />
+                                    <div>
+                                        <span className="font-semibold text-gray-900 block text-sm">Thanh toán qua VNPay</span>
+                                        <span className="text-gray-500 text-xs">Sandbox</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <button type="submit" className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 font-semibold" disabled={isSubmitting}>
+                            {isSubmitting ? 'Đang xử lý...' : paymentMethod === 'vnpay' ? 'Thanh toán VNPay' : 'Hoàn tất Đặt hàng'}
                         </button>
                     </form>
                 </div>
@@ -190,19 +261,22 @@ const Checkout = () => {
                         <h3 className="text-lg font-semibold mb-4">Tóm tắt đơn hàng</h3>
                         {cart && cart.items ? (
                             <div className="space-y-3">
-                                {cart.items.map((item) => (
+                                {getSelectedItems().map((item) => (
                                     <div key={item.cart_item_id} className="flex justify-between items-center text-sm border-b pb-2">
                                         <div>
                                             <p className="font-medium">{item.product_name}</p>
-                                            <p className="text-gray-500">Phân loại: Size {item.size || 'N/A'}</p>
-                    <p className="text-gray-500">Số lượng: x{item.quantity}</p>
+                                            <p className="text-gray-500">
+                                                Phân loại: Size {item.size || 'N/A'}
+                                                {item.color && item.color !== 'default' ? `, Màu ${item.color}` : ''}
+                                            </p>
+                                            <p className="text-gray-500">Số lượng: x{item.quantity}</p>
                 </div>
-                <p className="font-semibold">{(item.price * item.quantity).toLocaleString('vi-VN')} VND</p>
+                <p className="font-semibold">{(item.price * item.quantity).toLocaleString('en-US')} $</p>
             </div>
         ))}
                                 <div className="border-t pt-3 space-y-2">
-                                    {appliedPromotion && <div className="flex justify-between text-green-600"><span>Giảm giá ({promotionCode}):</span><span>- {appliedPromotion.discount.toLocaleString('vi-VN')} VND</span></div>}
-                                    <div className="flex justify-between font-bold text-lg"><span>Tổng cộng:</span><span className="text-red-600">{calculateTotal().toLocaleString('vi-VN')} VND</span></div>
+                                    {appliedPromotion && <div className="flex justify-between text-green-600"><span>Giảm giá ({promotionCode}):</span><span>- {appliedPromotion.discount.toLocaleString('en-US')} $</span></div>}
+                                    <div className="flex justify-between font-bold text-lg"><span>Tổng cộng:</span><span className="text-red-600">{calculateTotal().toLocaleString('en-US')} $</span></div>
                                 </div>
                             </div>
                         ) : (<p>Giỏ hàng trống</p>)}

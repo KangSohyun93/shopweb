@@ -37,7 +37,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="container mx-auto py-8 max-w-md">
+    <div className="container mx-auto py-6 md:py-8 px-4 max-w-md mt-14 md:mt-16">
       <h2 className="text-2xl font-bold mb-6 text-center">Đăng nhập</h2>
       <form onSubmit={handleSubmit} className="space-y-4 bg-white p-8 rounded-lg shadow-md">
         <div>

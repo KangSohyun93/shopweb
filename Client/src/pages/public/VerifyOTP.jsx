@@ -76,7 +76,7 @@ const VerifyOTP = () => {
 
   if (!email) {
     return (
-      <div className="container mx-auto py-8 max-w-md text-center">
+      <div className="container mx-auto py-6 md:py-8 px-4 max-w-md text-center mt-14 md:mt-16 bg-white p-6 rounded-lg shadow-md">
         <p className="text-red-500 mb-4">Không tìm thấy email. Vui lòng đăng ký lại.</p>
         <Link to="/signup" className="text-blue-600 hover:underline">
           Quay lại đăng ký
@@ -86,9 +86,8 @@ const VerifyOTP = () => {
   }
 
   return (
-    <div className="container mx-auto py-8 max-w-md">
+    <div className="container mx-auto py-6 md:py-8 px-4 max-w-md mt-14 md:mt-16 bg-white p-6 rounded-lg shadow-md">
       <h2 className="text-2xl font-bold mb-6 text-center">Xác thực tài khoản</h2>
-      <div className="bg-white p-8 rounded-lg shadow-md">
         <p className="text-gray-600 mb-6 text-center">
           Mã OTP đã được gửi đến email: <strong>{email}</strong>
         </p>
@@ -152,7 +151,6 @@ const VerifyOTP = () => {
             Quay lại đăng nhập
           </Link>
         </p>
-      </div>
     </div>
   );
 };
