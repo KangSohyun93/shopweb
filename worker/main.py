@@ -288,7 +288,7 @@ if __name__ == "__main__":
         print(f"   📊 Thống kê: Tìm thấy {stats['num_frequent_itemsets']} tập phổ biến. Thời gian: {round(stats['runtime'], 3)}s")
         
         if not frequent_itemsets:
-            print("⚠️ Không tìm thấy tập phổ biến nào. Hãy giảm MIN_SUPPORT_COUNT xuống (VD: 2 hoặc 3).")
+            print(" Không tìm thấy tập phổ biến nào. Hãy giảm MIN_SUPPORT_COUNT xuống (VD: 2 hoặc 3).")
             # Cập nhật thống kê rỗng
             save_mining_stats_to_mysql(ACTIVE_ALGORITHM, stats['runtime'], stats['num_frequent_itemsets'], 0)
             save_benchmark_log(ACTIVE_ALGORITHM, stats['runtime'], stats['num_frequent_itemsets'], 0, MIN_SUPPORT_COUNT, MIN_CONFIDENCE, len(transactions))
